@@ -1,8 +1,8 @@
 # Validates that `npm publish` would succeed — packaging, package.json
 # "files" config, tarball contents — on every PR to main, without ever
 # publishing anything or requiring registry credentials. This is a safe
-# rehearsal for the real publish that npm-publish.yml performs (which
-# only runs when a GitHub Release is created).
+# rehearsal for the real publish that release.yml performs (which
+# runs on push to main when conventional commits warrant a release).
 name: PR publish check
 
 on:
