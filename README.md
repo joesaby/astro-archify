@@ -115,6 +115,54 @@ archify({
 })
 ```
 
+There is no `width` option. The iframe is always `width: 100%` and fills whatever container your layout gives it. Use `height`/`minHeight`/`maxHeight` to control vertical sizing; control horizontal sizing in your site CSS (see [Layout and width](#layout-and-width) below).
+
+## Layout and width
+
+Diagram width is owned by your page layout, not by `archify()`. Each fence becomes a wrapper (`.archify-diagram` by default, or your custom `className`) containing a full-width iframe — so whatever box that wrapper sits in is the diagram's width.
+
+In a plain Astro project, that usually means your layout's content column — e.g. a `max-width` on `<main>` in your layout component.
+
+In [Starlight](https://starlight.astro.build/), the prose column is controlled by `--sl-content-width` (default ~45rem). Three common approaches:
+
+**Widen all docs content** — add a custom CSS file via Starlight's `customCss` option:
+
+```css
+/* src/styles/custom.css */
+:root {
+  --sl-content-width: 60rem;
+}
+```
+
+**Widen only diagrams** — leave prose at the default and target the embed wrapper:
+
+```css
+/* src/styles/custom.css */
+.archify-diagram {
+  width: calc(100% + 8rem);
+  max-width: 80rem;
+  margin-inline: -4rem;
+}
+```
+
+Tune the values to taste. This is useful when body text should stay narrow but architecture or workflow diagrams need more room.
+
+**Per-page width** — in MDX, wrap a fence in a styled container:
+
+````mdx
+<div class="diagram-wide">
+
+```archify
+{ ... }
+```
+
+</div>
+````
+
+Then style `.diagram-wide` in your custom CSS.
+
+If you push `--sl-content-width` well past ~60rem, Starlight's table-of-contents layout can overflow at some viewport sizes — see [Starlight issue #3513](https://github.com/withastro/starlight/issues/3513) for workarounds.
+
 ## Astro Compatibility
 
 `astro-archify` follows the same markdown-engine detection as [astro-mermaid](https://github.com/joesaby/astro-mermaid) to work across Astro 4 through 7:
@@ -149,6 +197,8 @@ To be clear about the boundary: **everything under `vendor/archify/` is Archify'
 ## Styling
 
 Archify inlines its entire viewer stylesheet (~4800 lines) into every artifact — the only external stylesheet is a Google Fonts `<link>`, which degrades gracefully if it can't load. Combined with the iframe embedding, this means a diagram always renders pixel-identical to opening the artifact standalone: your site's CSS can never leak into it, and its CSS can never leak into your site.
+
+You can still style the **wrapper** around the iframe from your site CSS — margins, borders, and width (see [Layout and width](#layout-and-width)). The `className` option is there if you need a project-specific hook.
 
 ## Demo
 
