@@ -65,6 +65,14 @@ export interface AstroArchifyOptions {
   allow?: string;
 
   /**
+   * Subdirectory (under the site root, respecting a configured `base`)
+   * that rendered diagram artifacts are served from — e.g. `/_archify/<id>.html`.
+   * Change this only if it collides with existing content.
+   * @default '_archify'
+   */
+  outDir?: string;
+
+  /**
    * Render timeout in milliseconds.
    * @default 30000
    */

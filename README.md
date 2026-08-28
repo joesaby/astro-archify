@@ -106,6 +106,10 @@ archify({
   // viewer's clipboard-copy export and fullscreen presentation stage
   allow: 'clipboard-write; fullscreen',
 
+  // Subdirectory diagram artifacts are served from, e.g. /_archify/<id>.html.
+  // Change only if it collides with existing content.
+  outDir: '_archify',
+
   // Render timeout, in milliseconds
   timeout: 30000
 })
@@ -124,26 +128,23 @@ archify({
 ## How It Works
 
 1. **Build time**: for each `archify` code fence, the JSON IR is written to a temp file and rendered by running Archify's own renderer script for that diagram type — `node vendor/archify/renderers/<type>/render-<type>.mjs <input.json> <output.html>` — as a subprocess. That's a real requirement, not just caution: Archify's renderer scripts call `process.exit()` directly on both success and failure, so they have to run out-of-process — importing them directly into the Astro build would let one bad diagram take down the whole build.
-2. The resulting self-contained HTML artifact is base64-encoded into a `data:` URL and embedded in a sandboxed `<iframe>`, replacing the code fence.
-3. **Runtime**: the browser loads Archify's own artifact directly inside that iframe — including its full viewer: guide overlay, node finder, guided story/chapter navigation, semantic passport panel, presentation stage, and PNG/JPEG/SVG/WebM exports. This integration doesn't reimplement any of that.
+2. The resulting self-contained HTML artifact is content-addressed (hashed from its diagram type, quality profile, and JSON source) and cached in memory under that id — so the same diagram appearing on multiple pages, or an unchanged diagram across incremental rebuilds, only renders once.
+3. Each artifact is served from its own real URL, `/_archify/<id>.html` by default — written to the final output directory on `astro:build:done` (which runs after Astro's own build, including copying `publicDir`, so this can't race or be clobbered), and served straight from memory by dev middleware in `astro dev`. The code fence is replaced with a sandboxed `<iframe src="/_archify/<id>.html">` plus a plain "Open full view ↗" link to that same URL.
+4. **Runtime**: the browser loads Archify's own artifact directly from that URL, inside the iframe — including its full viewer: guide overlay, node finder, guided story/chapter navigation, semantic passport panel, presentation stage, and PNG/JPEG/SVG/WebM exports. This integration doesn't reimplement any of that, and doesn't inline or re-encode it into the page either — it's a normal, separately-cacheable HTTP response.
 
-Archify's viewer assumes it owns the full browser viewport, so a fixed-size box would clip it badly. To avoid that, a small bridge script is appended to each artifact (the artifact is never otherwise modified) that reports its real content height to the parent page — on load and via `ResizeObserver` as the reader interacts with the viewer (opening a panel, entering presentation mode, etc.) — and the iframe grows or shrinks to match, bounded by `minHeight`/`maxHeight`.
+Archify's viewer assumes it owns the full browser viewport, so a fixed-size box would clip it badly. To avoid that, a small bridge script is appended to each artifact (the only modification this package makes to Archify's output) that reports its real content height to the parent page — on load and via `ResizeObserver` as the reader interacts with the viewer (opening a panel, entering presentation mode, etc.) — and the iframe grows or shrinks to match, bounded by `minHeight`/`maxHeight`.
 
 If a diagram fails to render (invalid JSON, an unknown `diagram_type`, or a schema/composition error from Archify itself), a visible inline error block is rendered in its place — using Archify's own structured diagnostic message and suggested fix when it provides one — and a build warning is logged. Set `strict: true` to fail the build instead.
+
+### A note on SSR
+
+Static builds (`output: 'static'`, the default) are fully supported. Under SSR (`output: 'server'`/`'hybrid'`), `astro:build:done`'s output directory is the client asset directory, which most adapters already serve as static files — so this should generally still work, but it's adapter-dependent and less thoroughly tested than the static case.
 
 ## Attribution
 
 Archify's own renderer and viewer are vendored into this package at [`vendor/archify/`](./vendor/archify) — copied from [tt-a1i/archify](https://github.com/tt-a1i/archify) (MIT licensed) at commit `12106be`, and used unmodified. See [`vendor/archify/NOTICE.md`](./vendor/archify/NOTICE.md) for exactly what was copied, why, and how to update it.
 
-To be clear about the boundary: **everything under `vendor/archify/` is Archify's own code**, doing Archify's own layout, rendering, and the entire interactive viewer. Everything else in this repository — the remark/Sätteri plugin glue that finds `archify` code fences, spawning the renderer as a subprocess, the iframe embedding and its auto-resize bridge, the Astro markdown-engine compatibility shim, the tests, and the demo — is original to `astro-archify` (the markdown-engine detection follows the same pattern used in [astro-mermaid](https://github.com/joesaby/astro-mermaid), also by this author).
-
-### Known limitation: page weight
-
-Because each artifact is base64-encoded inline, a diagram-heavy page can get large — Archify's own showcase-quality examples run several hundred KB each before encoding (roughly +33% after base64). `loading="lazy"` keeps off-screen diagrams from being fetched/decoded until scrolled into view, but the bytes are still part of the page's HTML response. For a page with many diagrams, consider `quality: 'standard'` or splitting diagrams across more pages.
-
-### Known limitation: no "open in a new tab" link
-
-Diagrams are embedded via a `data:` URL iframe rather than a real file with its own URL, which keeps this integration simple and avoids any build-ordering hazards — but browsers block top-level navigation to `data:` URLs, so there's currently no reliable way to offer an "open full view in a new tab" link. If you want that (or a real shareable link to a single diagram), that needs a same-origin static asset instead: the artifact written to a real URL at build time (via `astro:build:done`) and served by dev middleware in `astro dev`. Open an issue if you'd like this added.
+To be clear about the boundary: **everything under `vendor/archify/` is Archify's own code**, doing Archify's own layout, rendering, and the entire interactive viewer. Everything else in this repository — the remark/Sätteri plugin glue that finds `archify` code fences, spawning the renderer as a subprocess, content-addressed caching, serving artifacts from their own URLs, the iframe embedding and its auto-resize bridge, the Astro markdown-engine compatibility shim, the tests, and the demo — is original to `astro-archify` (the markdown-engine detection follows the same pattern used in [astro-mermaid](https://github.com/joesaby/astro-mermaid), also by this author).
 
 ## Styling
 

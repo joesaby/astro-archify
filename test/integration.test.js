@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
@@ -14,32 +16,59 @@ const FAILING_ARCHIFY_ROOT = join(__dirname, 'fixtures/failing-archify-root');
 const noopLogger = { info() {}, warn() {}, error() {} };
 
 /**
- * Drives astroArchify's astro:config:setup hook against a minimal mock
- * config (no markdown.processor, so it exercises the legacy
- * markdown.remarkPlugins fallback), then extracts the registered remark
- * plugin + its options so it can be run through a real unified/remark-parse
- * pipeline in isolation from Astro itself.
+ * Drives astroArchify's astro:config:setup and astro:server:setup hooks
+ * against minimal mocks (no markdown.processor, so it exercises the legacy
+ * markdown.remarkPlugins fallback), then hands back everything a test needs:
+ * the registered remark plugin, a way to simulate a dev-server request
+ * through the captured middleware, and a way to trigger astro:build:done
+ * against a real temp directory.
  */
-async function getRemarkPlugin(options) {
+async function setupIntegration(options, { base = '/' } = {}) {
   const integration = astroArchify(options);
   let updatedMarkdown;
-  const context = {
-    config: { markdown: {} },
+  let middlewareHandler;
+
+  await integration.hooks['astro:config:setup']({
+    config: { markdown: {}, base },
     updateConfig: patch => { updatedMarkdown = patch.markdown; },
     injectScript: () => {},
     logger: noopLogger
-  };
-  await integration.hooks['astro:config:setup'](context);
+  });
+
+  if (integration.hooks['astro:server:setup']) {
+    await integration.hooks['astro:server:setup']({
+      server: { middlewares: { use: fn => { middlewareHandler = fn; } } }
+    });
+  }
+
   const [plugin, pluginOptions] = updatedMarkdown.remarkPlugins.at(-1);
-  return { plugin, pluginOptions };
+
+  return {
+    plugin,
+    pluginOptions,
+    requestFromDevServer(pathname) {
+      return new Promise(resolve => {
+        const res = {
+          statusCode: 200,
+          headers: {},
+          setHeader(name, value) { this.headers[name] = value; },
+          end(body) { resolve({ status: this.statusCode, headers: this.headers, body }); }
+        };
+        middlewareHandler({ url: pathname }, res, () => resolve({ status: 404, headers: {}, body: null }));
+      });
+    },
+    async buildDone(outputDir) {
+      await integration.hooks['astro:build:done']({ dir: pathToFileURL(`${outputDir}/`), logger: noopLogger });
+    }
+  };
 }
 
-async function process(markdown, options) {
-  const { plugin, pluginOptions } = await getRemarkPlugin(options);
-  const processor = unified().use(remarkParse).use(plugin, pluginOptions);
+async function process(markdown, options, setupOpts) {
+  const harness = await setupIntegration(options, setupOpts);
+  const processor = unified().use(remarkParse).use(harness.plugin, harness.pluginOptions);
   const tree = processor.parse(markdown);
   await processor.run(tree);
-  return tree;
+  return { tree, harness };
 }
 
 function htmlNodes(tree) {
@@ -48,49 +77,92 @@ function htmlNodes(tree) {
   return nodes;
 }
 
-function decodeIframeSrc(html) {
-  const match = html.match(/data:text\/html;base64,([A-Za-z0-9+/=]+)/);
+function iframeSrc(html) {
+  const match = html.match(/<iframe src="([^"]+)"/);
   expect(match).not.toBeNull();
-  return Buffer.from(match[1], 'base64').toString('utf8');
+  return match[1];
 }
 
 describe('astroArchify remark plugin', () => {
-  it('renders an archify code fence via the archify CLI and embeds an iframe', async () => {
+  it('renders an archify code fence and points the iframe at a real content-addressed URL', async () => {
     const markdown = [
       '```archify',
       JSON.stringify({ diagram_type: 'architecture', meta: { title: 'Sample' } }),
       '```'
     ].join('\n');
 
-    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const { tree, harness } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
     const nodes = htmlNodes(tree);
 
     expect(nodes).toHaveLength(1);
     expect(nodes[0].value).toContain('class="archify-diagram"');
-    expect(nodes[0].value).toContain('<iframe');
     expect(nodes[0].value).toContain('sandbox="allow-scripts allow-popups allow-downloads"');
     expect(nodes[0].value).toContain('allow="clipboard-write; fullscreen"');
     expect(nodes[0].value).toContain('allowfullscreen');
     expect(nodes[0].value).toContain('data-archify-min-height="480"');
     expect(nodes[0].value).toContain('data-archify-max-height="4000"');
+    expect(nodes[0].value).toContain('archify-diagram-open');
 
-    const artifact = decodeIframeSrc(nodes[0].value);
-    expect(artifact).toContain('data-archify-type="architecture"');
-    expect(artifact).toContain('data-title="Sample"');
+    const src = iframeSrc(nodes[0].value);
+    expect(src).toMatch(/^\/_archify\/[0-9a-f]{16}\.html$/);
+    // The "open full view" link points at the same real URL, not a data: URI.
+    expect(nodes[0].value).toContain(`href="${src}"`);
+
+    const { status, headers, body } = await harness.requestFromDevServer(src);
+    expect(status).toBe(200);
+    expect(headers['Content-Type']).toBe('text/html; charset=utf-8');
+    expect(body).toContain('data-archify-type="architecture"');
+    expect(body).toContain('data-title="Sample"');
     // The resize bridge should be appended without disturbing the artifact.
-    expect(artifact).toContain('__astroArchify: true');
-    expect(artifact).toContain('ResizeObserver');
-    expect(artifact.indexOf('</body>')).toBeGreaterThan(artifact.indexOf('__astroArchify'));
+    expect(body).toContain('__astroArchify: true');
+    expect(body).toContain('ResizeObserver');
+    expect(body.indexOf('</body>')).toBeGreaterThan(body.indexOf('__astroArchify'));
+  });
+
+  it('respects a configured base path when building the artifact URL', async () => {
+    const markdown = ['```archify', JSON.stringify({ diagram_type: 'architecture' }), '```'].join('\n');
+    const { tree } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT }, { base: '/docs/' });
+    const src = iframeSrc(htmlNodes(tree)[0].value);
+    expect(src).toMatch(/^\/docs\/_archify\/[0-9a-f]{16}\.html$/);
+  });
+
+  it('de-duplicates identical diagrams to a single cached artifact id', async () => {
+    const ir = { diagram_type: 'architecture', meta: { title: 'Same diagram twice' } };
+    const markdown = ['```archify', JSON.stringify(ir), '```', '', '```archify', JSON.stringify(ir), '```'].join('\n');
+
+    const { tree } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const nodes = htmlNodes(tree);
+    expect(nodes).toHaveLength(2);
+    expect(iframeSrc(nodes[0].value)).toBe(iframeSrc(nodes[1].value));
+  });
+
+  it('writes cached artifacts to disk on astro:build:done', async () => {
+    const markdown = [
+      '```archify',
+      JSON.stringify({ diagram_type: 'architecture', meta: { title: 'Build output' } }),
+      '```'
+    ].join('\n');
+    const { tree, harness } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const src = iframeSrc(htmlNodes(tree)[0].value);
+
+    const outputDir = await mkdtemp(join(tmpdir(), 'astro-archify-build-'));
+    try {
+      await harness.buildDone(outputDir);
+      const written = await readFile(join(outputDir, '_archify', src.split('/').pop()), 'utf8');
+      expect(written).toContain('data-title="Build output"');
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
   });
 
   it('honors custom height bounds', async () => {
-    const markdown = [
-      '```archify',
-      JSON.stringify({ diagram_type: 'architecture' }),
-      '```'
-    ].join('\n');
-
-    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT, height: 300, minHeight: 200, maxHeight: 1000 });
+    const markdown = ['```archify', JSON.stringify({ diagram_type: 'architecture' }), '```'].join('\n');
+    const { tree } = await process(markdown, {
+      rendererRoot: FAKE_ARCHIFY_ROOT,
+      height: 300,
+      minHeight: 200,
+      maxHeight: 1000
+    });
     const html = htmlNodes(tree)[0].value;
     expect(html).toContain('height:300px');
     expect(html).toContain('data-archify-min-height="200"');
@@ -104,14 +176,15 @@ describe('astroArchify remark plugin', () => {
       '```'
     ].join('\n');
 
-    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
-    const artifact = decodeIframeSrc(htmlNodes(tree)[0].value);
-    expect(artifact).toContain('data-archify-type="sequence"');
+    const { tree, harness } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const src = iframeSrc(htmlNodes(tree)[0].value);
+    const { body } = await harness.requestFromDevServer(src);
+    expect(body).toContain('data-archify-type="sequence"');
   });
 
   it('leaves non-archify code fences untouched', async () => {
     const markdown = ['```javascript', 'const x = 1;', '```'].join('\n');
-    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const { tree } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
 
     let codeBlocks = 0;
     visit(tree, 'code', () => { codeBlocks++; });
@@ -121,7 +194,7 @@ describe('astroArchify remark plugin', () => {
 
   it('renders an inline error block for invalid JSON instead of throwing', async () => {
     const markdown = ['```archify', '{ not valid json', '```'].join('\n');
-    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const { tree } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes).toHaveLength(1);
@@ -130,25 +203,17 @@ describe('astroArchify remark plugin', () => {
   });
 
   it('renders an inline error block for an unknown diagram type', async () => {
-    const markdown = [
-      '```archify',
-      JSON.stringify({ diagram_type: 'not-a-real-type' }),
-      '```'
-    ].join('\n');
-    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
+    const markdown = ['```archify', JSON.stringify({ diagram_type: 'not-a-real-type' }), '```'].join('\n');
+    const { tree } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('archify-diagram-error');
     expect(nodes[0].value).toContain('unknown or missing diagram type');
   });
 
-  it('renders an inline error block when the archify command fails', async () => {
-    const markdown = [
-      '```archify',
-      JSON.stringify({ diagram_type: 'architecture' }),
-      '```'
-    ].join('\n');
-    const tree = await process(markdown, { rendererRoot: FAILING_ARCHIFY_ROOT });
+  it('renders an inline error block when the renderer fails', async () => {
+    const markdown = ['```archify', JSON.stringify({ diagram_type: 'architecture' }), '```'].join('\n');
+    const { tree } = await process(markdown, { rendererRoot: FAILING_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('archify-diagram-error');
@@ -156,25 +221,17 @@ describe('astroArchify remark plugin', () => {
   });
 
   it('renders an inline error block when rendererRoot points nowhere real', async () => {
-    const markdown = [
-      '```archify',
-      JSON.stringify({ diagram_type: 'architecture' }),
-      '```'
-    ].join('\n');
-    const tree = await process(markdown, { rendererRoot: '/definitely/not/a/real/path' });
+    const markdown = ['```archify', JSON.stringify({ diagram_type: 'architecture' }), '```'].join('\n');
+    const { tree } = await process(markdown, { rendererRoot: '/definitely/not/a/real/path' });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('archify-diagram-error');
     expect(nodes[0].value).toContain('could not find');
   });
 
-  it('surfaces Archify\'s structured diagnostic message, including a suggested fix', async () => {
-    const markdown = [
-      '```archify',
-      JSON.stringify({ diagram_type: 'architecture' }),
-      '```'
-    ].join('\n');
-    const tree = await process(markdown, { rendererRoot: FAILING_ARCHIFY_ROOT });
+  it("surfaces Archify's structured diagnostic message, including a suggested fix", async () => {
+    const markdown = ['```archify', JSON.stringify({ diagram_type: 'architecture' }), '```'].join('\n');
+    const { tree } = await process(markdown, { rendererRoot: FAILING_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('composition checks did not pass');
@@ -184,9 +241,9 @@ describe('astroArchify remark plugin', () => {
 
   it('throws instead of embedding an error block when strict is enabled', async () => {
     const markdown = ['```archify', '{ not valid json', '```'].join('\n');
-    await expect(process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT, strict: true })).rejects.toThrow(
-      /invalid JSON/
-    );
+    await expect(
+      process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT, strict: true })
+    ).rejects.toThrow(/invalid JSON/);
   });
 });
 
@@ -204,13 +261,14 @@ describe('astroArchify with the bundled (default) Archify renderer', () => {
     };
     const markdown = ['```archify', JSON.stringify(ir), '```'].join('\n');
 
-    const tree = await process(markdown, {});
+    const { tree, harness } = await process(markdown, {});
     const nodes = htmlNodes(tree);
+    const src = iframeSrc(nodes[0].value);
 
-    expect(nodes[0].value).toContain('<iframe');
-    const artifact = decodeIframeSrc(nodes[0].value);
-    expect(artifact).toContain('Bundled renderer smoke test');
-    expect(artifact).toContain('<svg');
+    const { status, body } = await harness.requestFromDevServer(src);
+    expect(status).toBe(200);
+    expect(body).toContain('Bundled renderer smoke test');
+    expect(body).toContain('<svg');
   }, 20000);
 });
 
@@ -221,5 +279,9 @@ describe('astroArchify options validation', () => {
 
   it('rejects an invalid className', () => {
     expect(() => astroArchify({ className: '1 not valid' })).toThrow(/className/);
+  });
+
+  it('rejects an invalid outDir', () => {
+    expect(() => astroArchify({ outDir: '../escape' })).toThrow(/outDir/);
   });
 });
