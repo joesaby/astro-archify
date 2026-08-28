@@ -1,3 +1,10 @@
+## [0.3.3](https://github.com/joesaby/astro-archify/compare/v0.3.2...v0.3.3) (2026-08-28)
+
+
+### Bug Fixes
+
+* install root deps before Netlify demo build ([a2a1b70](https://github.com/joesaby/astro-archify/commit/a2a1b7032b1795e3e5e886de44cf849e21fd9094))
+
 ## [0.3.2](https://github.com/joesaby/astro-archify/compare/v0.3.1...v0.3.2) (2026-08-28)
 
 
