@@ -69,10 +69,32 @@ describe('astroArchify remark plugin', () => {
     expect(nodes[0].value).toContain('class="archify-diagram"');
     expect(nodes[0].value).toContain('<iframe');
     expect(nodes[0].value).toContain('sandbox="allow-scripts allow-popups allow-downloads"');
+    expect(nodes[0].value).toContain('allow="clipboard-write; fullscreen"');
+    expect(nodes[0].value).toContain('allowfullscreen');
+    expect(nodes[0].value).toContain('data-archify-min-height="480"');
+    expect(nodes[0].value).toContain('data-archify-max-height="4000"');
 
     const artifact = decodeIframeSrc(nodes[0].value);
     expect(artifact).toContain('data-archify-type="architecture"');
     expect(artifact).toContain('data-title="Sample"');
+    // The resize bridge should be appended without disturbing the artifact.
+    expect(artifact).toContain('__astroArchify: true');
+    expect(artifact).toContain('ResizeObserver');
+    expect(artifact.indexOf('</body>')).toBeGreaterThan(artifact.indexOf('__astroArchify'));
+  });
+
+  it('honors custom height bounds', async () => {
+    const markdown = [
+      '```archify',
+      JSON.stringify({ diagram_type: 'architecture' }),
+      '```'
+    ].join('\n');
+
+    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY, height: 300, minHeight: 200, maxHeight: 1000 });
+    const html = htmlNodes(tree)[0].value;
+    expect(html).toContain('height:300px');
+    expect(html).toContain('data-archify-min-height="200"');
+    expect(html).toContain('data-archify-max-height="1000"');
   });
 
   it('honors an explicit type in the fence language over the JSON body', async () => {

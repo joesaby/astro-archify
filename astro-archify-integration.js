@@ -134,18 +134,54 @@ async function renderArchifyDiagram({ bin, type, source, quality, timeout }) {
 }
 
 /**
- * Wrap a fully self-contained Archify HTML artifact in a sandboxed iframe.
- * A data: URL is used (rather than srcdoc) so the artifact's own markup
- * never has to be escaped for attribute embedding.
+ * Archify's viewer (guide overlay, semantic passport panel, story mode,
+ * presentation stage, exports...) assumes it owns the full viewport, so a
+ * fixed-height box clips or scrollbars it badly. This appends a small
+ * bridge script — before the artifact is embedded — that reports the
+ * document's real height to the parent page via postMessage, both on load
+ * and via ResizeObserver as the reader interacts with the viewer. The
+ * artifact has no CSP and ends with a plain `</body>`, so this is a safe
+ * append. The archify HTML itself is never otherwise modified.
  */
-function buildIframeHtml(html, { className, height, sandbox }) {
-  const encoded = Buffer.from(html, 'utf8').toString('base64');
+function injectResizeBridge(html) {
+  const bridge = `
+<script>
+(function () {
+  function reportHeight() {
+    var height = Math.max(
+      document.documentElement ? document.documentElement.scrollHeight : 0,
+      document.body ? document.body.scrollHeight : 0
+    );
+    if (height > 0) window.parent.postMessage({ __astroArchify: true, height: height }, '*');
+  }
+  if (window.ResizeObserver && document.documentElement) {
+    new ResizeObserver(reportHeight).observe(document.documentElement);
+  }
+  window.addEventListener('load', reportHeight);
+  document.addEventListener('DOMContentLoaded', reportHeight);
+  reportHeight();
+  setTimeout(reportHeight, 250);
+  setTimeout(reportHeight, 1000);
+})();
+</script>
+`;
+  return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${bridge}</body>`) : `${html}${bridge}`;
+}
+
+/**
+ * Wrap a fully self-contained Archify HTML artifact in a sandboxed iframe
+ * that auto-grows to fit the viewer's real content height. A data: URL is
+ * used (rather than srcdoc) so the artifact's own markup never has to be
+ * escaped for attribute embedding.
+ */
+function buildIframeHtml(html, { className, height, minHeight, maxHeight, sandbox, allow }) {
+  const encoded = Buffer.from(injectResizeBridge(html), 'utf8').toString('base64');
   const heightValue = typeof height === 'number' ? `${height}px` : String(height);
   return (
-    `<div class="${className}">` +
+    `<div class="${className}" data-archify-min-height="${minHeight}" data-archify-max-height="${maxHeight}">` +
     `<iframe src="data:text/html;base64,${encoded}" ` +
     `style="width:100%;height:${escapeHtml(heightValue)};border:0;display:block;" ` +
-    `loading="lazy" sandbox="${escapeHtml(sandbox)}"></iframe>` +
+    `loading="lazy" sandbox="${escapeHtml(sandbox)}" allow="${escapeHtml(allow)}" allowfullscreen></iframe>` +
     `</div>`
   );
 }
@@ -189,7 +225,14 @@ async function resolveDiagram({ node, parsed, options, fileLabel }) {
     options.logger?.info(`astro-archify: rendered ${type} diagram in ${fileLabel}`);
     return {
       type: 'html',
-      value: buildIframeHtml(html, { className: options.className, height: options.height, sandbox: options.sandbox })
+      value: buildIframeHtml(html, {
+        className: options.className,
+        height: options.height,
+        minHeight: options.minHeight,
+        maxHeight: options.maxHeight,
+        sandbox: options.sandbox,
+        allow: options.allow
+      })
     };
   } catch (error) {
     if (options.strict) throw new Error(`astro-archify: ${error.message} in ${fileLabel}`);
@@ -263,9 +306,12 @@ export default function astroArchify(options = {}) {
     archifyBin = 'archify',
     quality,
     strict = false,
-    height = 640,
+    height = 480,
+    minHeight = height,
+    maxHeight = 4000,
     className = 'archify-diagram',
     sandbox = 'allow-scripts allow-popups allow-downloads',
+    allow = 'clipboard-write; fullscreen',
     timeout = 30000
   } = options;
 
@@ -282,7 +328,9 @@ export default function astroArchify(options = {}) {
       'astro:config:setup': async ({ config, updateConfig, injectScript, logger }) => {
         logger.info('Setting up Archify integration');
 
-        const pluginOptions = { archifyBin, quality, strict, height, className, sandbox, timeout, logger };
+        const pluginOptions = {
+          archifyBin, quality, strict, height, minHeight, maxHeight, className, sandbox, allow, timeout, logger
+        };
         const remarkEntry = [remarkArchifyPlugin, pluginOptions];
 
         // Newer Astro versions expose the markdown engine on
@@ -347,8 +395,13 @@ export default function astroArchify(options = {}) {
           });
         }
 
-        // Minimal presentational styling for the wrapper only; the
-        // Archify artifact itself is fully self-contained.
+        // Minimal presentational styling for the wrapper; the Archify
+        // artifact itself is fully self-contained. The message listener
+        // auto-grows each iframe to fit its real content height, using
+        // the postMessage bridge appended to the artifact in
+        // injectResizeBridge() — Archify's viewer assumes it owns the
+        // full viewport, so this is what keeps its guide overlay, story
+        // mode, and export panels from being clipped by a fixed box.
         injectScript('page', `
           const style = document.createElement('style');
           style.textContent = \`
@@ -363,6 +416,19 @@ export default function astroArchify(options = {}) {
             }
           \`;
           document.head.appendChild(style);
+
+          window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data || data.__astroArchify !== true || typeof data.height !== 'number') return;
+            for (const iframe of document.querySelectorAll('.${className} iframe')) {
+              if (iframe.contentWindow !== event.source) continue;
+              const wrapper = iframe.closest('.${className}');
+              const min = wrapper ? parseInt(wrapper.dataset.archifyMinHeight, 10) || 0 : 0;
+              const max = wrapper ? parseInt(wrapper.dataset.archifyMaxHeight, 10) || Infinity : Infinity;
+              iframe.style.height = Math.min(Math.max(data.height + 4, min), max) + 'px';
+              break;
+            }
+          });
         `);
       }
     }

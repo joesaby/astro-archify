@@ -26,11 +26,26 @@ export interface AstroArchifyOptions {
   strict?: boolean;
 
   /**
-   * Height of the rendered diagram's iframe. A number is treated as pixels;
-   * a string is used as-is (any valid CSS length).
-   * @default 640
+   * Initial height of the diagram's iframe, shown before the artifact
+   * reports its real content height (see `minHeight`/`maxHeight`). A
+   * number is treated as pixels.
+   * @default 480
    */
-  height?: number | string;
+  height?: number;
+
+  /**
+   * The iframe never shrinks below this height once auto-resized.
+   * @default the value of `height`
+   */
+  minHeight?: number;
+
+  /**
+   * The iframe never grows past this height even if Archify's viewer
+   * (guide overlay, story mode, semantic passport panel, etc.) reports a
+   * taller content size.
+   * @default 4000
+   */
+  maxHeight?: number;
 
   /**
    * CSS class name applied to the diagram wrapper element.
@@ -43,6 +58,14 @@ export interface AstroArchifyOptions {
    * @default 'allow-scripts allow-popups allow-downloads'
    */
   sandbox?: string;
+
+  /**
+   * `allow` (Permissions Policy) attribute applied to the diagram's
+   * iframe, needed for the viewer's clipboard-copy export and fullscreen
+   * presentation stage to work inside the embed.
+   * @default 'clipboard-write; fullscreen'
+   */
+  allow?: string;
 
   /**
    * Render timeout in milliseconds.

@@ -99,14 +99,25 @@ archify({
   // Fail the build instead of rendering a visible inline error block
   strict: false,
 
-  // iframe height (number = px, or any CSS length string)
-  height: 720,
+  // Initial iframe height in px, shown before the artifact reports its
+  // real content height
+  height: 480,
+
+  // The iframe never shrinks below this height (defaults to `height`)
+  minHeight: 480,
+
+  // The iframe never grows past this height, even for a very tall diagram
+  maxHeight: 4000,
 
   // Wrapper class name
   className: 'archify-diagram',
 
   // iframe sandbox attribute
   sandbox: 'allow-scripts allow-popups allow-downloads',
+
+  // iframe `allow` (Permissions Policy) attribute — needed for the
+  // viewer's clipboard-copy export and fullscreen presentation stage
+  allow: 'clipboard-write; fullscreen',
 
   // Render timeout, in milliseconds
   timeout: 30000
@@ -127,9 +138,15 @@ archify({
 
 1. **Build time**: for each `archify` code fence, the JSON IR is written to a temp file and rendered with `archify render <type> <input.json> <output.html>`.
 2. The resulting self-contained HTML artifact is base64-encoded into a `data:` URL and embedded in a sandboxed `<iframe>`, replacing the code fence.
-3. **Runtime**: the browser loads Archify's own artifact directly inside that iframe — including its built-in pan/zoom and focus-view controls. No archify-specific JavaScript ships from this integration itself.
+3. **Runtime**: the browser loads Archify's own artifact directly inside that iframe — including its full viewer: guide overlay, node finder, guided story/chapter navigation, semantic passport panel, presentation stage, and PNG/JPEG/SVG/WebM exports. This integration doesn't reimplement any of that.
+
+Archify's viewer assumes it owns the full browser viewport, so a fixed-size box would clip it badly. To avoid that, a small bridge script is appended to each artifact (the artifact is never otherwise modified) that reports its real content height to the parent page — on load and via `ResizeObserver` as the reader interacts with the viewer (opening a panel, entering presentation mode, etc.) — and the iframe grows or shrinks to match, bounded by `minHeight`/`maxHeight`.
 
 If a diagram fails to render (invalid JSON, an unknown `diagram_type`, or the `archify` command being unavailable), a visible inline error block is rendered in its place and a build warning is logged — set `strict: true` to fail the build instead.
+
+### Known limitation: no "open in a new tab" link
+
+Diagrams are embedded via a `data:` URL iframe rather than a real file with its own URL, which keeps this integration simple and avoids any build-ordering hazards — but browsers block top-level navigation to `data:` URLs, so there's currently no reliable way to offer an "open full view in a new tab" link. If you want that (or a real shareable link to a single diagram), that needs a same-origin static asset instead: the artifact written to a real URL at build time (via `astro:build:done`) and served by dev middleware in `astro dev`. Open an issue if you'd like this added.
 
 ## Supported Diagram Types
 
