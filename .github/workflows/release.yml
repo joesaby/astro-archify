@@ -11,7 +11,7 @@
 # First-time setup: tag the current version so future releases continue from it:
 #   git tag v0.3.0 && git push origin v0.3.0
 #
-# Required repo secrets: npm_token (npm automation token with publish access)
+# Required repo secrets: NPM_TOKEN (npm automation token with publish access)
 
 name: Release
 
@@ -44,5 +44,5 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
