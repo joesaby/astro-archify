@@ -8,8 +8,8 @@ import { visit } from 'unist-util-visit';
 import astroArchify from '../astro-archify-integration.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FAKE_ARCHIFY = join(__dirname, 'fixtures/fake-archify.mjs');
-const FAILING_ARCHIFY = join(__dirname, 'fixtures/failing-archify.mjs');
+const FAKE_ARCHIFY_ROOT = join(__dirname, 'fixtures/fake-archify-root');
+const FAILING_ARCHIFY_ROOT = join(__dirname, 'fixtures/failing-archify-root');
 
 const noopLogger = { info() {}, warn() {}, error() {} };
 
@@ -62,7 +62,7 @@ describe('astroArchify remark plugin', () => {
       '```'
     ].join('\n');
 
-    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY });
+    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
     const nodes = htmlNodes(tree);
 
     expect(nodes).toHaveLength(1);
@@ -90,7 +90,7 @@ describe('astroArchify remark plugin', () => {
       '```'
     ].join('\n');
 
-    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY, height: 300, minHeight: 200, maxHeight: 1000 });
+    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT, height: 300, minHeight: 200, maxHeight: 1000 });
     const html = htmlNodes(tree)[0].value;
     expect(html).toContain('height:300px');
     expect(html).toContain('data-archify-min-height="200"');
@@ -104,14 +104,14 @@ describe('astroArchify remark plugin', () => {
       '```'
     ].join('\n');
 
-    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY });
+    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
     const artifact = decodeIframeSrc(htmlNodes(tree)[0].value);
     expect(artifact).toContain('data-archify-type="sequence"');
   });
 
   it('leaves non-archify code fences untouched', async () => {
     const markdown = ['```javascript', 'const x = 1;', '```'].join('\n');
-    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY });
+    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
 
     let codeBlocks = 0;
     visit(tree, 'code', () => { codeBlocks++; });
@@ -121,7 +121,7 @@ describe('astroArchify remark plugin', () => {
 
   it('renders an inline error block for invalid JSON instead of throwing', async () => {
     const markdown = ['```archify', '{ not valid json', '```'].join('\n');
-    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY });
+    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes).toHaveLength(1);
@@ -135,7 +135,7 @@ describe('astroArchify remark plugin', () => {
       JSON.stringify({ diagram_type: 'not-a-real-type' }),
       '```'
     ].join('\n');
-    const tree = await process(markdown, { archifyBin: FAKE_ARCHIFY });
+    const tree = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('archify-diagram-error');
@@ -148,32 +148,70 @@ describe('astroArchify remark plugin', () => {
       JSON.stringify({ diagram_type: 'architecture' }),
       '```'
     ].join('\n');
-    const tree = await process(markdown, { archifyBin: FAILING_ARCHIFY });
+    const tree = await process(markdown, { rendererRoot: FAILING_ARCHIFY_ROOT });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('archify-diagram-error');
     expect(nodes[0].value).toContain('composition checks');
   });
 
-  it('renders an inline error block when the archify command cannot be found', async () => {
+  it('renders an inline error block when rendererRoot points nowhere real', async () => {
     const markdown = [
       '```archify',
       JSON.stringify({ diagram_type: 'architecture' }),
       '```'
     ].join('\n');
-    const tree = await process(markdown, { archifyBin: 'definitely-not-a-real-binary' });
+    const tree = await process(markdown, { rendererRoot: '/definitely/not/a/real/path' });
 
     const nodes = htmlNodes(tree);
     expect(nodes[0].value).toContain('archify-diagram-error');
-    expect(nodes[0].value).toContain('could not find the');
+    expect(nodes[0].value).toContain('could not find');
+  });
+
+  it('surfaces Archify\'s structured diagnostic message, including a suggested fix', async () => {
+    const markdown = [
+      '```archify',
+      JSON.stringify({ diagram_type: 'architecture' }),
+      '```'
+    ].join('\n');
+    const tree = await process(markdown, { rendererRoot: FAILING_ARCHIFY_ROOT });
+
+    const nodes = htmlNodes(tree);
+    expect(nodes[0].value).toContain('composition checks did not pass');
+    expect(nodes[0].value).toContain('Fix:');
+    expect(nodes[0].value).toContain('separate corridors');
   });
 
   it('throws instead of embedding an error block when strict is enabled', async () => {
     const markdown = ['```archify', '{ not valid json', '```'].join('\n');
-    await expect(process(markdown, { archifyBin: FAKE_ARCHIFY, strict: true })).rejects.toThrow(
+    await expect(process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT, strict: true })).rejects.toThrow(
       /invalid JSON/
     );
   });
+});
+
+describe('astroArchify with the bundled (default) Archify renderer', () => {
+  it('renders a real diagram end-to-end with no options at all', async () => {
+    const ir = {
+      schema_version: 1,
+      diagram_type: 'architecture',
+      meta: { title: 'Bundled renderer smoke test' },
+      components: [
+        { id: 'a', type: 'frontend', label: 'A', pos: [0, 0], size: [100, 50] },
+        { id: 'b', type: 'backend', label: 'B', pos: [200, 0], size: [100, 50] }
+      ],
+      connections: [{ id: 'a-b', from: 'a', to: 'b' }]
+    };
+    const markdown = ['```archify', JSON.stringify(ir), '```'].join('\n');
+
+    const tree = await process(markdown, {});
+    const nodes = htmlNodes(tree);
+
+    expect(nodes[0].value).toContain('<iframe');
+    const artifact = decodeIframeSrc(nodes[0].value);
+    expect(artifact).toContain('Bundled renderer smoke test');
+    expect(artifact).toContain('<svg');
+  }, 20000);
 });
 
 describe('astroArchify options validation', () => {

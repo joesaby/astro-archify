@@ -1,10 +1,20 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const DIAGRAM_TYPES = new Set(['architecture', 'workflow', 'sequence', 'dataflow', 'lifecycle']);
 const CLASS_NAME_PATTERN = /^[a-zA-Z_-][\w-]*$/;
+
+/**
+ * Archify's own renderer + viewer, vendored into this package (see
+ * vendor/archify/NOTICE.md for provenance and what was copied). Resolved
+ * relative to this file so it works regardless of where astro-archify ends
+ * up inside node_modules.
+ */
+const DEFAULT_RENDERER_ROOT = fileURLToPath(new URL('./vendor/archify/', import.meta.url));
 
 /**
  * Helper function to HTML-escape text content
@@ -38,15 +48,36 @@ function parseArchifyLang(lang) {
 }
 
 /**
- * Resolve the archifyBin option into a spawnable command. A path ending in
- * .mjs/.js/.cjs is run through the current Node binary; anything else is
- * treated as an executable name resolved via PATH.
+ * Path to the renderer script for a diagram type, given an Archify package
+ * root (a directory laid out like archify's own package: it contains
+ * renderers/<type>/render-<type>.mjs and assets/template.html). Defaults to
+ * the vendored copy bundled with this package; `rendererRoot` lets an
+ * advanced user point at a different Archify checkout instead.
  */
-function resolveCommand(bin) {
-  if (/\.(mjs|cjs|js)$/.test(bin)) {
-    return { command: process.execPath, baseArgs: [bin] };
+function rendererScriptPath(rendererRoot, type) {
+  return join(rendererRoot, 'renderers', type, `render-${type}.mjs`);
+}
+
+/**
+ * Extract a readable message from a failed render. When
+ * ARCHIFY_DIAGNOSTIC_FORMAT=json is set (always, here), Archify's own
+ * uncaughtException boundary prints a structured diagnostic payload to
+ * stderr before exiting; fall back to raw stderr/stdout if that's not what
+ * came back (e.g. the process never got that far).
+ */
+function describeRenderFailure(result) {
+  try {
+    const payload = JSON.parse((result.stderr || '').trim());
+    if (payload?.ok === false && payload.error) {
+      const fixes = (payload.diagnostics || [])
+        .flatMap(entry => entry.supportedFixes || [])
+        .filter(Boolean);
+      return fixes.length ? `${payload.error} Fix: ${fixes.join('; ')}.` : payload.error;
+    }
+  } catch {
+    // Not a structured diagnostic — fall through to the raw output below.
   }
-  return { command: bin, baseArgs: [] };
+  return (result.stderr || result.stdout || '').trim() || 'no output';
 }
 
 function runProcess(command, args, { env, timeout } = {}) {
@@ -89,10 +120,23 @@ function runProcess(command, args, { env, timeout } = {}) {
 
 /**
  * Render a single Archify JSON IR document to a self-contained HTML artifact
- * by shelling out to the `archify render` CLI at build time.
+ * by running Archify's own renderer script — vendored into this package, by
+ * default — as a subprocess at build time. A subprocess (rather than an
+ * in-process import) is required, not just a safety preference: Archify's
+ * renderer scripts are written as one-shot CLI entry points that call
+ * `process.exit()` directly on both success and failure, which would take
+ * down the whole Astro build if imported in-process.
  */
-async function renderArchifyDiagram({ bin, type, source, quality, timeout }) {
-  const { command, baseArgs } = resolveCommand(bin);
+async function renderArchifyDiagram({ rendererRoot, type, source, quality, timeout }) {
+  const scriptPath = rendererScriptPath(rendererRoot, type);
+  if (!existsSync(scriptPath)) {
+    throw new Error(
+      `could not find Archify's "${type}" renderer at "${scriptPath}". If you set a custom ` +
+      `"rendererRoot" option, check it points at a directory laid out like Archify's package ` +
+      `root (containing renderers/${type}/render-${type}.mjs).`
+    );
+  }
+
   const dir = await mkdtemp(join(tmpdir(), 'astro-archify-'));
   const inputPath = join(dir, 'input.json');
   const outputPath = join(dir, 'output.html');
@@ -100,22 +144,14 @@ async function renderArchifyDiagram({ bin, type, source, quality, timeout }) {
   try {
     await writeFile(inputPath, source, 'utf8');
 
-    const env = quality ? { ARCHIFY_QUALITY_PROFILE: quality } : undefined;
-    const result = await runProcess(
-      command,
-      [...baseArgs, 'render', type, inputPath, outputPath],
-      { env, timeout }
-    );
+    const env = {
+      ARCHIFY_DIAGNOSTIC_FORMAT: 'json',
+      ...(quality ? { ARCHIFY_QUALITY_PROFILE: quality } : {})
+    };
+    const result = await runProcess(process.execPath, [scriptPath, inputPath, outputPath], { env, timeout });
 
     if (result.spawnError) {
-      if (result.spawnError.code === 'ENOENT') {
-        throw new Error(
-          `could not find the "${bin}" command. Install Archify and make sure it is on PATH ` +
-          `(e.g. "npx skills add tt-a1i/archify -g"), or set the "archifyBin" option to the ` +
-          `full path of Archify's bin/archify.mjs.`
-        );
-      }
-      throw new Error(`could not start Archify: ${result.spawnError.message}`);
+      throw new Error(`could not start Archify's renderer: ${result.spawnError.message}`);
     }
 
     if (result.timedOut) {
@@ -123,8 +159,7 @@ async function renderArchifyDiagram({ bin, type, source, quality, timeout }) {
     }
 
     if (result.status !== 0) {
-      const detail = (result.stderr || result.stdout || '').trim();
-      throw new Error(`Archify failed to render a "${type}" diagram${detail ? `: ${detail}` : '.'}`);
+      throw new Error(`Archify failed to render a "${type}" diagram: ${describeRenderFailure(result)}`);
     }
 
     return await readFile(outputPath, 'utf8');
@@ -216,7 +251,7 @@ async function resolveDiagram({ node, parsed, options, fileLabel }) {
 
   try {
     const html = await renderArchifyDiagram({
-      bin: options.archifyBin,
+      rendererRoot: options.rendererRoot,
       type,
       source: node.value,
       quality: options.quality,
@@ -287,12 +322,13 @@ function satteriArchifyPlugin(options = {}) {
  * sequence, dataflow, lifecycle) from JSON IR code fences.
  *
  * Unlike client-side diagram libraries, Archify compiles its IR into a
- * fully self-contained, already-interactive HTML artifact at build time by
- * shelling out to the `archify` CLI. That artifact is embedded as a
+ * fully self-contained, already-interactive HTML artifact at build time, by
+ * running its own renderer script (vendored into this package — see
+ * vendor/archify/NOTICE.md) as a subprocess. That artifact is embedded as a
  * sandboxed iframe, preserving Archify's own pan/zoom/focus viewer.
  *
  * @param {Object} [options]
- * @param {string} [options.archifyBin='archify'] - Command or script path used to invoke Archify.
+ * @param {string} [options.rendererRoot] - Advanced: path to an Archify package root to use instead of the bundled copy.
  * @param {'standard'|'showcase'} [options.quality] - Archify quality profile.
  * @param {boolean} [options.strict=false] - Fail the build instead of rendering an inline error.
  * @param {number|string} [options.height=640] - iframe height (number = px, or any CSS length).
@@ -303,7 +339,7 @@ function satteriArchifyPlugin(options = {}) {
  */
 export default function astroArchify(options = {}) {
   const {
-    archifyBin = 'archify',
+    rendererRoot = DEFAULT_RENDERER_ROOT,
     quality,
     strict = false,
     height = 480,
@@ -329,7 +365,7 @@ export default function astroArchify(options = {}) {
         logger.info('Setting up Archify integration');
 
         const pluginOptions = {
-          archifyBin, quality, strict, height, minHeight, maxHeight, className, sandbox, allow, timeout, logger
+          rendererRoot, quality, strict, height, minHeight, maxHeight, className, sandbox, allow, timeout, logger
         };
         const remarkEntry = [remarkArchifyPlugin, pluginOptions];
 

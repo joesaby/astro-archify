@@ -2,16 +2,13 @@ import type { AstroIntegration } from 'astro';
 
 export interface AstroArchifyOptions {
   /**
-   * Command or script path used to invoke Archify.
-   *
-   * Defaults to `'archify'`, resolved via PATH (install with e.g.
-   * `npx skills add tt-a1i/archify -g` and make sure the command is on
-   * PATH). A path ending in `.mjs`/`.js`/`.cjs` (e.g. a local
-   * `.../archify/bin/archify.mjs`) is run through the current Node binary
-   * instead.
-   * @default 'archify'
+   * Advanced: path to an Archify package root to use instead of the copy
+   * vendored into this package (see vendor/archify/NOTICE.md). Must be a
+   * directory laid out like Archify's own package root — containing
+   * `renderers/<type>/render-<type>.mjs` and `assets/template.html` for
+   * each diagram type.
    */
-  archifyBin?: string;
+  rendererRoot?: string;
 
   /**
    * Archify rendering quality profile, forwarded as `ARCHIFY_QUALITY_PROFILE`.

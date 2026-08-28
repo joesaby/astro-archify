@@ -1,7 +1,7 @@
 {
   "name": "astro-archify",
-  "version": "0.1.0",
-  "description": "An Astro integration that renders Archify system diagrams (architecture, workflow, sequence, dataflow, lifecycle) from JSON IR code blocks at build time",
+  "version": "0.2.0",
+  "description": "An Astro integration that renders Archify system diagrams (architecture, workflow, sequence, dataflow, lifecycle) from JSON IR code blocks at build time, with Archify's renderer bundled in",
   "type": "module",
   "main": "./astro-archify-integration.js",
   "types": "./astro-archify-integration.d.ts",
@@ -14,6 +14,7 @@
   "files": [
     "astro-archify-integration.js",
     "astro-archify-integration.d.ts",
+    "vendor/archify",
     "README.md"
   ],
   "keywords": [

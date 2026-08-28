@@ -2,25 +2,11 @@
 
 An Astro integration for rendering [Archify](https://github.com/tt-a1i/archify) system diagrams — architecture, workflow, sequence, data flow, and lifecycle — from JSON IR code blocks in your markdown/MDX content.
 
-Archify turns a typed JSON intermediate representation (IR) into a fully self-contained, already-interactive HTML artifact (inline SVG plus a small pan/zoom/focus viewer, no external runtime dependencies). This integration renders that artifact **at build time** by shelling out to the `archify` CLI, and embeds it as a sandboxed `<iframe>` — so you get Archify's real viewer, not a re-implementation of it.
+Archify turns a typed JSON intermediate representation (IR) into a fully self-contained, already-interactive HTML artifact (inline SVG plus a small pan/zoom/focus viewer, no external runtime dependencies). This integration renders that artifact **at build time** using Archify's own renderer — bundled into this package, see [Attribution](#attribution) — and embeds it as a sandboxed `<iframe>`, so you get Archify's real viewer, not a re-implementation of it.
 
 This is a different rendering model than diagram libraries like Mermaid: there is no client-side JS bundle to ship, because Archify does its layout work in Node during your Astro build, not in the browser.
 
-## Prerequisites
-
-You need the `archify` CLI available wherever your site builds. It is distributed as an agent skill rather than an npm package, so install it with:
-
-```bash
-npx skills add tt-a1i/archify -g
-```
-
-Then confirm it's on your `PATH`:
-
-```bash
-archify doctor
-```
-
-If `archify` isn't resolvable on `PATH` in your build environment, point the integration at the script directly with the `archifyBin` option (see below).
+There's no separate CLI to install — `npm install astro-archify` is everything you need.
 
 ## Installation
 
@@ -88,10 +74,11 @@ export default defineConfig({
 
 ```js
 archify({
-  // Command or script used to invoke Archify. Defaults to 'archify'
-  // (resolved via PATH). Point this at a script path if you installed
-  // Archify manually instead of putting it on PATH:
-  archifyBin: '/opt/archify/bin/archify.mjs',
+  // Advanced: use a different Archify checkout instead of the copy bundled
+  // with this package. Must be a directory laid out like Archify's own
+  // package root (containing renderers/<type>/render-<type>.mjs and
+  // assets/template.html). Most projects never need this.
+  rendererRoot: '/path/to/a/newer/archify/checkout',
 
   // Archify quality profile: 'standard' | 'showcase'
   quality: 'showcase',
@@ -136,13 +123,19 @@ archify({
 
 ## How It Works
 
-1. **Build time**: for each `archify` code fence, the JSON IR is written to a temp file and rendered with `archify render <type> <input.json> <output.html>`.
+1. **Build time**: for each `archify` code fence, the JSON IR is written to a temp file and rendered by running Archify's own renderer script for that diagram type — `node vendor/archify/renderers/<type>/render-<type>.mjs <input.json> <output.html>` — as a subprocess. That's a real requirement, not just caution: Archify's renderer scripts call `process.exit()` directly on both success and failure, so they have to run out-of-process — importing them directly into the Astro build would let one bad diagram take down the whole build.
 2. The resulting self-contained HTML artifact is base64-encoded into a `data:` URL and embedded in a sandboxed `<iframe>`, replacing the code fence.
 3. **Runtime**: the browser loads Archify's own artifact directly inside that iframe — including its full viewer: guide overlay, node finder, guided story/chapter navigation, semantic passport panel, presentation stage, and PNG/JPEG/SVG/WebM exports. This integration doesn't reimplement any of that.
 
 Archify's viewer assumes it owns the full browser viewport, so a fixed-size box would clip it badly. To avoid that, a small bridge script is appended to each artifact (the artifact is never otherwise modified) that reports its real content height to the parent page — on load and via `ResizeObserver` as the reader interacts with the viewer (opening a panel, entering presentation mode, etc.) — and the iframe grows or shrinks to match, bounded by `minHeight`/`maxHeight`.
 
-If a diagram fails to render (invalid JSON, an unknown `diagram_type`, or the `archify` command being unavailable), a visible inline error block is rendered in its place and a build warning is logged — set `strict: true` to fail the build instead.
+If a diagram fails to render (invalid JSON, an unknown `diagram_type`, or a schema/composition error from Archify itself), a visible inline error block is rendered in its place — using Archify's own structured diagnostic message and suggested fix when it provides one — and a build warning is logged. Set `strict: true` to fail the build instead.
+
+## Attribution
+
+Archify's own renderer and viewer are vendored into this package at [`vendor/archify/`](./vendor/archify) — copied from [tt-a1i/archify](https://github.com/tt-a1i/archify) (MIT licensed) at commit `12106be`, and used unmodified. See [`vendor/archify/NOTICE.md`](./vendor/archify/NOTICE.md) for exactly what was copied, why, and how to update it.
+
+To be clear about the boundary: **everything under `vendor/archify/` is Archify's own code**, doing Archify's own layout, rendering, and the entire interactive viewer. Everything else in this repository — the remark/Sätteri plugin glue that finds `archify` code fences, spawning the renderer as a subprocess, the iframe embedding and its auto-resize bridge, the Astro markdown-engine compatibility shim, the tests, and the demo — is original to `astro-archify` (the markdown-engine detection follows the same pattern used in [astro-mermaid](https://github.com/joesaby/astro-mermaid), also by this author).
 
 ### Known limitation: page weight
 
