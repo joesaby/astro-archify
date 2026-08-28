@@ -1,0 +1,15 @@
+{
+  "name": "astro-archify-demo",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^6.4.6",
+    "astro-archify": "file:.."
+  }
+}

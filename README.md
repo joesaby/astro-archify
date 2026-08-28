@@ -144,9 +144,21 @@ Archify's viewer assumes it owns the full browser viewport, so a fixed-size box 
 
 If a diagram fails to render (invalid JSON, an unknown `diagram_type`, or the `archify` command being unavailable), a visible inline error block is rendered in its place and a build warning is logged — set `strict: true` to fail the build instead.
 
+### Known limitation: page weight
+
+Because each artifact is base64-encoded inline, a diagram-heavy page can get large — Archify's own showcase-quality examples run several hundred KB each before encoding (roughly +33% after base64). `loading="lazy"` keeps off-screen diagrams from being fetched/decoded until scrolled into view, but the bytes are still part of the page's HTML response. For a page with many diagrams, consider `quality: 'standard'` or splitting diagrams across more pages.
+
 ### Known limitation: no "open in a new tab" link
 
 Diagrams are embedded via a `data:` URL iframe rather than a real file with its own URL, which keeps this integration simple and avoids any build-ordering hazards — but browsers block top-level navigation to `data:` URLs, so there's currently no reliable way to offer an "open full view in a new tab" link. If you want that (or a real shareable link to a single diagram), that needs a same-origin static asset instead: the artifact written to a real URL at build time (via `astro:build:done`) and served by dev middleware in `astro dev`. Open an issue if you'd like this added.
+
+## Styling
+
+Archify inlines its entire viewer stylesheet (~4800 lines) into every artifact — there is no external CSS file. Combined with the iframe embedding, this means a diagram always renders pixel-identical to opening the artifact standalone: your site's CSS can never leak into it, and its CSS can never leak into your site.
+
+## Demo
+
+See [`demo/`](./demo) for a minimal Astro project rendering Archify's own architecture, sequence, and workflow examples.
 
 ## Supported Diagram Types
 
