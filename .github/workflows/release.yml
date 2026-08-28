@@ -1,0 +1,48 @@
+# Automated semver releases from conventional commits on main.
+# Bumps package.json, updates CHANGELOG.md, creates a GitHub Release, and
+# publishes to npm. Replaces the manual release + npm-publish.yml flow.
+#
+# Commit message format (Conventional Commits):
+#   feat: new feature        -> minor bump (0.x.y -> 0.(x+1).0)
+#   fix: bug fix             -> patch bump
+#   feat!: breaking change   -> major bump
+#   chore/docs/test: no release unless configured
+#
+# First-time setup: tag the current version so future releases continue from it:
+#   git tag v0.3.0 && git push origin v0.3.0
+#
+# Required repo secrets: npm_token (npm automation token with publish access)
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Semantic release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+        run: npx semantic-release
