@@ -1,3 +1,10 @@
+## [0.3.4](https://github.com/joesaby/astro-archify/compare/v0.3.3...v0.3.4) (2026-08-28)
+
+
+### Bug Fixes
+
+* reference npm_token secret name in workflows ([72f26ef](https://github.com/joesaby/astro-archify/commit/72f26ef03f85bd22fc97d8e9c57ec47d6026edfd))
+
 ## [0.3.3](https://github.com/joesaby/astro-archify/compare/v0.3.2...v0.3.3) (2026-08-28)
 
 
