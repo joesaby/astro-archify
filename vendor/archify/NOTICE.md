@@ -27,6 +27,22 @@ These files are otherwise **unmodified** from upstream. `astro-archify`'s own co
 
 Confirmed at vendoring time: this file set has **zero npm runtime dependencies** — only Node.js builtins (`fs`, `path`, `crypto`, `child_process`, `url`, `dns/promises`, `http`, `https`, `net`). Archify's own `ajv`/`parse5`/`saxes`/`simple-icons` devDependencies are build-time-only (schema/brand-mark codegen) and are not required to run these files.
 
-## Keeping this in sync
+## Keeping this in sync (patching)
 
-This is a point-in-time copy, not a live dependency — upstream fixes and features do not arrive automatically. To update: re-clone `tt-a1i/archify` at a newer commit, re-run the same import-graph trace from the five `render-*.mjs` entry points, diff the resulting file set against this directory, copy over changes, update the pinned commit/version above, and re-run this package's test suite and demo build before publishing.
+This is a point-in-time copy, not a live dependency — upstream fixes and features do not arrive automatically. To pull in a newer Archify:
+
+```bash
+git clone https://github.com/tt-a1i/archify /tmp/archify-latest
+npm run update:vendor -- /tmp/archify-latest
+```
+
+This re-traces the same import graph used to vendor these files originally (see `scripts/update-vendor.mjs`), overwrites this directory with whatever changed, and prints a summary of what's new or changed plus the exact "Pinned commit" / "Upstream version" values to put in this file. Then:
+
+```bash
+git diff vendor/archify/   # review what actually changed upstream
+# update the Pinned commit / Upstream version / Vendored on fields above
+npm test
+cd demo && npm install && npm run build   # rebuild and spot-check a page
+```
+
+The script only touches files under `vendor/archify/` — it never edits this file, `git`, or anything outside `vendor/`.
