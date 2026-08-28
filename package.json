@@ -1,0 +1,57 @@
+{
+  "name": "astro-archify",
+  "version": "0.1.0",
+  "description": "An Astro integration that renders Archify system diagrams (architecture, workflow, sequence, dataflow, lifecycle) from JSON IR code blocks at build time",
+  "type": "module",
+  "main": "./astro-archify-integration.js",
+  "types": "./astro-archify-integration.d.ts",
+  "exports": {
+    ".": {
+      "import": "./astro-archify-integration.js",
+      "types": "./astro-archify-integration.d.ts"
+    }
+  },
+  "files": [
+    "astro-archify-integration.js",
+    "astro-archify-integration.d.ts",
+    "README.md"
+  ],
+  "keywords": [
+    "astro",
+    "astro-integration",
+    "archify",
+    "diagrams",
+    "markdown",
+    "architecture",
+    "system-design",
+    "sequence-diagram"
+  ],
+  "author": "Jose Sebastian",
+  "license": "MIT",
+  "peerDependencies": {
+    "astro": ">=4"
+  },
+  "dependencies": {
+    "unist-util-visit": "^5.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/markdown-satteri": "^0.3.2",
+    "astro": "^6.4.6",
+    "unified": "^11.0.5",
+    "remark-parse": "^11.0.0",
+    "vitest": "^4.1.8"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joesaby/astro-archify.git"
+  },
+  "homepage": "https://github.com/joesaby/astro-archify#readme",
+  "bugs": {
+    "url": "https://github.com/joesaby/astro-archify/issues"
+  }
+}
