@@ -272,6 +272,31 @@ describe('astroArchify with the bundled (default) Archify renderer', () => {
   }, 20000);
 });
 
+describe('README examples', () => {
+  it('every complete ```archify JSON example in README.md actually renders', async () => {
+    const readme = await readFile(join(__dirname, '../README.md'), 'utf8');
+    const fenceRe = /```archify(?::\w+)?\n([\s\S]*?)```/g;
+    const examples = [];
+    let match;
+    while ((match = fenceRe.exec(readme))) {
+      try {
+        examples.push(JSON.parse(match[1]));
+      } catch {
+        // Not a complete JSON example (e.g. a "{ ... }" placeholder) — nothing to render.
+      }
+    }
+    // Guards against silently having zero examples checked (e.g. a fence syntax change).
+    expect(examples.length).toBeGreaterThan(0);
+
+    for (const ir of examples) {
+      const markdown = ['```archify', JSON.stringify(ir), '```'].join('\n');
+      const { tree } = await process(markdown, {});
+      const html = htmlNodes(tree)[0].value;
+      expect(html, `README example failed to render:\n${JSON.stringify(ir, null, 2)}`).not.toContain('archify-diagram-error');
+    }
+  }, 20000);
+});
+
 describe('astroArchify options validation', () => {
   it('rejects an invalid quality profile', () => {
     expect(() => astroArchify({ quality: 'ultra' })).toThrow(/quality/);

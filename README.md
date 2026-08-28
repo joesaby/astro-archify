@@ -2,7 +2,7 @@
 
 An Astro integration for rendering [Archify](https://github.com/tt-a1i/archify) system diagrams — architecture, workflow, sequence, data flow, and lifecycle — from JSON IR code blocks in your markdown/MDX content.
 
-Archify turns a typed JSON intermediate representation (IR) into a fully self-contained, already-interactive HTML artifact (inline SVG plus a small pan/zoom/focus viewer, no external runtime dependencies). This integration renders that artifact **at build time** using Archify's own renderer — bundled into this package, see [Attribution](#attribution) — and embeds it as a sandboxed `<iframe>`, so you get Archify's real viewer, not a re-implementation of it.
+Archify turns a typed JSON intermediate representation (IR) into a fully self-contained, already-interactive HTML artifact — inline SVG plus a small pan/zoom/focus viewer, with every script and its ~4800 lines of CSS inlined (the one exception is a Google Fonts `<link>`, which degrades gracefully if it can't load). This integration renders that artifact **at build time** using Archify's own renderer — bundled into this package, see [Attribution](#attribution) — and embeds it as a sandboxed `<iframe>`, so you get Archify's real viewer, not a re-implementation of it.
 
 This is a different rendering model than diagram libraries like Mermaid: there is no client-side JS bundle to ship, because Archify does its layout work in Node during your Astro build, not in the browser.
 
@@ -35,11 +35,11 @@ Then, in markdown or MDX:
   "diagram_type": "architecture",
   "meta": { "title": "Sample Web App" },
   "components": [
-    { "id": "api", "label": "API" },
-    { "id": "db", "label": "Database" }
+    { "id": "api", "type": "backend", "label": "API", "pos": [40, 40], "size": [120, 60] },
+    { "id": "db", "type": "database", "label": "Database", "pos": [260, 40], "size": [120, 60] }
   ],
-  "relationships": [
-    { "from": "api", "to": "db" }
+  "connections": [
+    { "from": "api", "to": "db", "label": "SQL" }
   ]
 }
 ```
@@ -148,7 +148,7 @@ To be clear about the boundary: **everything under `vendor/archify/` is Archify'
 
 ## Styling
 
-Archify inlines its entire viewer stylesheet (~4800 lines) into every artifact — there is no external CSS file. Combined with the iframe embedding, this means a diagram always renders pixel-identical to opening the artifact standalone: your site's CSS can never leak into it, and its CSS can never leak into your site.
+Archify inlines its entire viewer stylesheet (~4800 lines) into every artifact — the only external stylesheet is a Google Fonts `<link>`, which degrades gracefully if it can't load. Combined with the iframe embedding, this means a diagram always renders pixel-identical to opening the artifact standalone: your site's CSS can never leak into it, and its CSS can never leak into your site.
 
 ## Demo
 
