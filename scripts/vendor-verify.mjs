@@ -7,7 +7,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const demo = path.join(root, 'demo');
 
 function run(command, cwd) {
   console.log(`\n> ${command}\n`);
@@ -15,7 +14,9 @@ function run(command, cwd) {
 }
 
 run('npm test -- --run', root);
-run('npm install', demo);
-run('npm run build', demo);
+run('npm install', path.join(root, 'demo'));
+run('npm install', path.join(root, 'astro-demo'));
+run('npm run build', path.join(root, 'demo'));
+run('npm run build', path.join(root, 'astro-demo'));
 
 console.log('\nVendor verification passed.\n');

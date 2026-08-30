@@ -20,6 +20,8 @@
   "keywords": [
     "astro",
     "astro-integration",
+    "withastro",
+    "utility",
     "archify",
     "diagrams",
     "markdown",
@@ -58,7 +60,7 @@
     "type": "git",
     "url": "git+https://github.com/joesaby/astro-archify.git"
   },
-  "homepage": "https://github.com/joesaby/astro-archify#readme",
+  "homepage": "https://astro-archify.netlify.app/",
   "bugs": {
     "url": "https://github.com/joesaby/astro-archify/issues"
   }
