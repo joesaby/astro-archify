@@ -1,6 +1,6 @@
 ---
-layout: ../layouts/Layout.astro
 title: Sequence
+description: Cache Miss Request Sequence diagram example.
 ---
 
 # Sequence diagram

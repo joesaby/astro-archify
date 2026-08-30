@@ -126,7 +126,7 @@ function main() {
   console.log(`       Vendored on: ${new Date().toISOString().slice(0, 10)}`);
   console.log(`  3. Re-run the import-graph file list above against NOTICE.md's list if it changed.`);
   console.log(`  4. npm test`);
-  console.log(`  5. Rebuild the demo (cd demo && npm install && npm run build) and spot-check a page.`);
+  console.log(`  5. Rebuild the demos (npm run vendor:verify) and spot-check a page.`);
 }
 
 main();

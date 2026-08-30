@@ -60,7 +60,7 @@
     "type": "git",
     "url": "git+https://github.com/joesaby/astro-archify.git"
   },
-  "homepage": "https://astro-archify.netlify.app/",
+  "homepage": "https://astro-archify-starlight-demo.netlify.app/",
   "bugs": {
     "url": "https://github.com/joesaby/astro-archify/issues"
   }

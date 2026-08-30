@@ -2,13 +2,14 @@
 
 An Astro integration for rendering [Archify](https://github.com/tt-a1i/archify) system diagrams — architecture, workflow, sequence, data flow, and lifecycle — from JSON IR code blocks in your markdown/MDX content. Works with standalone Astro projects and documentation frameworks like [Starlight](https://starlight.astro.build/).
 
-## Live demo
+## Live demos
 
 | Demo | URL | Description |
 |------|-----|-------------|
-| **Page-based Astro site** | [astro-archify.netlify.app](https://astro-archify.netlify.app/) | All five diagram types, minimal `src/pages/` layout |
+| **Starlight** | [astro-archify-starlight-demo.netlify.app](https://astro-archify-starlight-demo.netlify.app/) | Documentation site with Starlight |
+| **Standalone Astro** | [astro-archify-astro-demo.netlify.app](https://astro-archify-astro-demo.netlify.app/) | Pure Astro project template |
 
-See also [`demo/`](./demo/) (source for the live site) and [`astro-demo/`](./astro-demo/) (standalone template with content collections and sidebar layout).
+See also [`starlight-demo/`](./starlight-demo/) and [`astro-demo/`](./astro-demo/) in this repo.
 
 Listed in the [Astro integrations directory](https://astro.build/integrations/?search=archify).
 
@@ -210,14 +211,14 @@ Archify inlines its entire viewer stylesheet (~4800 lines) into every artifact �
 
 You can still style the **wrapper** around the iframe from your site CSS — margins, borders, and width (see [Layout and width](#layout-and-width)). The `className` option is there if you need a project-specific hook.
 
-## Demo
+## Demos
 
 | Demo | URL | Source |
 |------|-----|--------|
-| Page-based Astro site | [astro-archify.netlify.app](https://astro-archify.netlify.app/) | [`demo/`](./demo/) |
-| Standalone template | — (run locally) | [`astro-demo/`](./astro-demo/) |
+| Starlight | [astro-archify-starlight-demo.netlify.app](https://astro-archify-starlight-demo.netlify.app/) | [`starlight-demo/`](./starlight-demo/) |
+| Standalone Astro | [astro-archify-astro-demo.netlify.app](https://astro-archify-astro-demo.netlify.app/) | [`astro-demo/`](./astro-demo/) |
 
-Both work with plain Astro — no Starlight required. For Starlight, list `archify()` before `starlight()` in `astro.config.mjs` (see [Integration Order](#integration-order-important)).
+For Starlight, list `archify()` before `starlight()` in `astro.config.mjs` (see [Integration Order](#integration-order-important)).
 
 ## Supported Diagram Types
 

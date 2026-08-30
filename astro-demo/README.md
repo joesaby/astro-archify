@@ -2,9 +2,9 @@
 
 A standalone Astro project demonstrating `astro-archify` outside of Starlight — content collections, a sidebar layout, and all five Archify diagram types.
 
-**Live page-based demo:** [astro-archify.netlify.app](https://astro-archify.netlify.app/) (built from [`demo/`](../demo/)).
+**Live:** [astro-archify-astro-demo.netlify.app](https://astro-archify-astro-demo.netlify.app/)
 
-For the Starlight documentation-site listing, see the [Starlight plugins PR](https://github.com/withastro/starlight/pull/4164).
+For the Starlight documentation-site demo, see [`starlight-demo/`](../starlight-demo/).
 
 ## Run
 
