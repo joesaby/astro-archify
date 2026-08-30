@@ -14,9 +14,9 @@ function run(command, cwd) {
 }
 
 run('npm test -- --run', root);
-run('npm install', path.join(root, 'demo'));
+run('npm install', path.join(root, 'starlight-demo'));
 run('npm install', path.join(root, 'astro-demo'));
-run('npm run build', path.join(root, 'demo'));
+run('npm run build', path.join(root, 'starlight-demo'));
 run('npm run build', path.join(root, 'astro-demo'));
 
 console.log('\nVendor verification passed.\n');

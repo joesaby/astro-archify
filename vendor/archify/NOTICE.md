@@ -46,6 +46,6 @@ git diff vendor/archify/   # review what actually changed upstream
 npm run vendor:verify
 ```
 
-`vendor:verify` runs the full test suite and rebuilds the demo. For a quicker check while iterating, `npm test -- --run` is enough.
+`vendor:verify` runs the full test suite and rebuilds both demos. For a quicker check while iterating, `npm test -- --run` is enough.
 
 The script only touches files under `vendor/archify/` — it never edits this file, `git`, or anything outside `vendor/`.

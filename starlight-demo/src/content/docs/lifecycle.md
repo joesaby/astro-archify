@@ -1,6 +1,6 @@
 ---
-layout: ../layouts/Layout.astro
 title: Lifecycle
+description: Agent Run Lifecycle diagram example.
 ---
 
 # Lifecycle diagram

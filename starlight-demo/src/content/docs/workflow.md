@@ -1,6 +1,6 @@
 ---
-layout: ../layouts/Layout.astro
 title: Workflow
+description: Agent Tool Call Workflow — schema v2 constraint-driven compiler.
 ---
 
 # Workflow diagram

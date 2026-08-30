@@ -1,6 +1,6 @@
 ---
-layout: ../layouts/Layout.astro
 title: Architecture
+description: Sample Web App — Archify architecture diagram example.
 ---
 
 # Architecture diagram

@@ -1,6 +1,6 @@
 ---
-layout: ../layouts/Layout.astro
 title: Data flow
+description: Product Analytics Data Flow diagram example.
 ---
 
 # Data flow diagram
