@@ -1,3 +1,10 @@
+## [0.3.5](https://github.com/joesaby/astro-archify/compare/v0.3.4...v0.3.5) (2026-08-30)
+
+
+### Bug Fixes
+
+* publish Archify 2.16.0 vendor and updated npm metadata ([5044494](https://github.com/joesaby/astro-archify/commit/5044494c0b59ecf2533a71a7e79bf87a62ffdff6))
+
 ## [0.3.4](https://github.com/joesaby/astro-archify/compare/v0.3.3...v0.3.4) (2026-08-28)
 
 
