@@ -7,11 +7,13 @@ title: astro-archify demo
 
 This is a plain Astro project using [astro-archify](https://github.com/joesaby/astro-archify) to render [Archify](https://github.com/tt-a1i/archify) system diagrams straight from JSON IR fenced in markdown.
 
-Each diagram below is rendered **at build time** by the real `archify` CLI, then embedded as a sandboxed, auto-resizing iframe — so what you see is Archify's actual interactive viewer (pan/zoom, focus views, node finder, exports), not a re-implementation of it.
+Each diagram below is rendered **at build time** by Archify's bundled renderer, then embedded as a sandboxed, auto-resizing iframe — so what you see is Archify's actual interactive viewer (pan/zoom, focus views, node finder, exports), not a re-implementation of it.
 
 - [Architecture](/architecture)
+- [Workflow](/workflow) — schema v2, constraint-driven compiler
 - [Sequence](/sequence)
-- [Workflow](/workflow)
+- [Data flow](/dataflow)
+- [Lifecycle](/lifecycle)
 
 ## Try it
 
