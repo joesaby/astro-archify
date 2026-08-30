@@ -1,6 +1,6 @@
 # astro-archify demo
 
-A minimal Astro project showing `astro-archify` rendering [Archify](https://github.com/tt-a1i/archify)'s own architecture, sequence, and workflow examples from JSON IR fenced in markdown. No separate Archify install needed — `astro-archify` bundles Archify's renderer.
+A minimal Astro project showing `astro-archify` rendering [Archify](https://github.com/tt-a1i/archify)'s own architecture, workflow, sequence, data flow, and lifecycle examples from JSON IR fenced in markdown. No separate Archify install needed — `astro-archify` bundles Archify's renderer.
 
 ## Run
 
@@ -11,4 +11,4 @@ npm run dev     # http://localhost:4321
 npm run build && npm run preview
 ```
 
-Each page (`/`, `/architecture`, `/sequence`, `/workflow`) renders its diagram at build time and embeds Archify's real interactive viewer.
+Each page (`/`, `/architecture`, `/workflow`, `/sequence`, `/dataflow`, `/lifecycle`) renders its diagram at build time and embeds Archify's real interactive viewer.
