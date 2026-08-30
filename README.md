@@ -1,6 +1,16 @@
 # astro-archify
 
-An Astro integration for rendering [Archify](https://github.com/tt-a1i/archify) system diagrams — architecture, workflow, sequence, data flow, and lifecycle — from JSON IR code blocks in your markdown/MDX content.
+An Astro integration for rendering [Archify](https://github.com/tt-a1i/archify) system diagrams — architecture, workflow, sequence, data flow, and lifecycle — from JSON IR code blocks in your markdown/MDX content. Works with standalone Astro projects and documentation frameworks like [Starlight](https://starlight.astro.build/).
+
+## Live demo
+
+| Demo | URL | Description |
+|------|-----|-------------|
+| **Page-based Astro site** | [astro-archify.netlify.app](https://astro-archify.netlify.app/) | All five diagram types, minimal `src/pages/` layout |
+
+See also [`demo/`](./demo/) (source for the live site) and [`astro-demo/`](./astro-demo/) (standalone template with content collections and sidebar layout).
+
+Listed in the [Astro integrations directory](https://astro.build/integrations/?search=archify).
 
 Archify turns a typed JSON intermediate representation (IR) into a fully self-contained, already-interactive HTML artifact — inline SVG plus a small pan/zoom/focus viewer, with every script and its ~4800 lines of CSS inlined (the one exception is a Google Fonts `<link>`, which degrades gracefully if it can't load). This integration renders that artifact **at build time** using Archify's own renderer — bundled into this package, see [Attribution](#attribution) — and embeds it as a sandboxed `<iframe>`, so you get Archify's real viewer, not a re-implementation of it.
 
@@ -202,7 +212,12 @@ You can still style the **wrapper** around the iframe from your site CSS — mar
 
 ## Demo
 
-See [`demo/`](./demo) for a minimal Astro project rendering Archify's own architecture, sequence, and workflow examples.
+| Demo | URL | Source |
+|------|-----|--------|
+| Page-based Astro site | [astro-archify.netlify.app](https://astro-archify.netlify.app/) | [`demo/`](./demo/) |
+| Standalone template | — (run locally) | [`astro-demo/`](./astro-demo/) |
+
+Both work with plain Astro — no Starlight required. For Starlight, list `archify()` before `starlight()` in `astro.config.mjs` (see [Integration Order](#integration-order-important)).
 
 ## Supported Diagram Types
 
