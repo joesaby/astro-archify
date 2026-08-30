@@ -43,8 +43,9 @@ This re-traces the same import graph used to vendor these files originally (see 
 ```bash
 git diff vendor/archify/   # review what actually changed upstream
 # update the Pinned commit / Upstream version / Vendored on fields above
-npm test
-cd demo && npm install && npm run build   # rebuild and spot-check a page
+npm run vendor:verify
 ```
+
+`vendor:verify` runs the full test suite and rebuilds the demo. For a quicker check while iterating, `npm test -- --run` is enough.
 
 The script only touches files under `vendor/archify/` — it never edits this file, `git`, or anything outside `vendor/`.
