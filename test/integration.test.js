@@ -1,87 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 
 import astroArchify from '../astro-archify-integration.js';
+import { htmlNodes, iframeSrc, process, setupIntegration, testDir } from './helpers.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FAKE_ARCHIFY_ROOT = join(__dirname, 'fixtures/fake-archify-root');
-const FAILING_ARCHIFY_ROOT = join(__dirname, 'fixtures/failing-archify-root');
-
-const noopLogger = { info() {}, warn() {}, error() {} };
-
-/**
- * Drives astroArchify's astro:config:setup and astro:server:setup hooks
- * against minimal mocks (no markdown.processor, so it exercises the legacy
- * markdown.remarkPlugins fallback), then hands back everything a test needs:
- * the registered remark plugin, a way to simulate a dev-server request
- * through the captured middleware, and a way to trigger astro:build:done
- * against a real temp directory.
- */
-async function setupIntegration(options, { base = '/' } = {}) {
-  const integration = astroArchify(options);
-  let updatedMarkdown;
-  let middlewareHandler;
-
-  await integration.hooks['astro:config:setup']({
-    config: { markdown: {}, base },
-    updateConfig: patch => { updatedMarkdown = patch.markdown; },
-    injectScript: () => {},
-    logger: noopLogger
-  });
-
-  if (integration.hooks['astro:server:setup']) {
-    await integration.hooks['astro:server:setup']({
-      server: { middlewares: { use: fn => { middlewareHandler = fn; } } }
-    });
-  }
-
-  const [plugin, pluginOptions] = updatedMarkdown.remarkPlugins.at(-1);
-
-  return {
-    plugin,
-    pluginOptions,
-    requestFromDevServer(pathname) {
-      return new Promise(resolve => {
-        const res = {
-          statusCode: 200,
-          headers: {},
-          setHeader(name, value) { this.headers[name] = value; },
-          end(body) { resolve({ status: this.statusCode, headers: this.headers, body }); }
-        };
-        middlewareHandler({ url: pathname }, res, () => resolve({ status: 404, headers: {}, body: null }));
-      });
-    },
-    async buildDone(outputDir) {
-      await integration.hooks['astro:build:done']({ dir: pathToFileURL(`${outputDir}/`), logger: noopLogger });
-    }
-  };
-}
-
-async function process(markdown, options, setupOpts) {
-  const harness = await setupIntegration(options, setupOpts);
-  const processor = unified().use(remarkParse).use(harness.plugin, harness.pluginOptions);
-  const tree = processor.parse(markdown);
-  await processor.run(tree);
-  return { tree, harness };
-}
-
-function htmlNodes(tree) {
-  const nodes = [];
-  visit(tree, 'html', node => nodes.push(node));
-  return nodes;
-}
-
-function iframeSrc(html) {
-  const match = html.match(/<iframe src="([^"]+)"/);
-  expect(match).not.toBeNull();
-  return match[1];
-}
+const FAKE_ARCHIFY_ROOT = join(testDir, 'fixtures/fake-archify-root');
+const FAILING_ARCHIFY_ROOT = join(testDir, 'fixtures/failing-archify-root');
 
 describe('astroArchify remark plugin', () => {
   it('renders an archify code fence and points the iframe at a real content-addressed URL', async () => {
@@ -274,7 +201,7 @@ describe('astroArchify with the bundled (default) Archify renderer', () => {
 
 describe('README examples', () => {
   it('every complete ```archify JSON example in README.md actually renders', async () => {
-    const readme = await readFile(join(__dirname, '../README.md'), 'utf8');
+    const readme = await readFile(join(testDir, '../README.md'), 'utf8');
     const fenceRe = /```archify(?::\w+)?\n([\s\S]*?)```/g;
     const examples = [];
     let match;

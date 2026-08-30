@@ -51,7 +51,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "update:vendor": "node scripts/update-vendor.mjs"
+    "update:vendor": "node scripts/update-vendor.mjs",
+    "vendor:verify": "node scripts/vendor-verify.mjs"
   },
   "repository": {
     "type": "git",
