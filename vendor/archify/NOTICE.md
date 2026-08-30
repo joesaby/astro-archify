@@ -3,9 +3,9 @@
 This directory contains source code copied verbatim from [tt-a1i/archify](https://github.com/tt-a1i/archify), used under its MIT license (see `LICENSE` in this directory).
 
 - **Source**: https://github.com/tt-a1i/archify
-- **Pinned commit**: `12106be58b34f94b108ab30f6ac0eb37c16a8f71`
-- **Upstream version**: `2.16.0-dev.0` (per `archify/package.json` at that commit)
-- **Vendored on**: 2026-08-28
+- **Pinned commit**: `39a21139a4661203888049d44e3b8c0da13fa576`
+- **Upstream version**: `2.16.0` (per `archify/package.json` at that commit)
+- **Vendored on**: 2026-08-30
 
 ## What was copied, and why
 
@@ -15,6 +15,8 @@ This directory contains source code copied verbatim from [tt-a1i/archify](https:
 renderers/architecture/render-architecture.mjs
 renderers/architecture/grid.mjs
 renderers/workflow/render-workflow.mjs
+renderers/workflow/workflow-compiler.mjs
+renderers/workflow/workflow-migration-geometry.mjs
 renderers/sequence/render-sequence.mjs
 renderers/dataflow/render-dataflow.mjs
 renderers/lifecycle/render-lifecycle.mjs
