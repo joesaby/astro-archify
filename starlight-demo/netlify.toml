@@ -8,7 +8,12 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    # SAMEORIGIN (not DENY): astro-archify embeds each diagram's own
+    # /_archify/*.html artifact in a same-origin <iframe> on the page that
+    # references it. DENY blocks that embed even though it's same-origin —
+    # the diagram silently fails to render while "Open full view" (a
+    # top-level navigation, unaffected by X-Frame-Options) still works.
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
