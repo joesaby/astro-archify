@@ -1,3 +1,10 @@
+## [0.3.6](https://github.com/joesaby/astro-archify/compare/v0.3.5...v0.3.6) (2026-08-31)
+
+
+### Bug Fixes
+
+* allow same-origin framing so demo diagrams embed again ([4b6e1ea](https://github.com/joesaby/astro-archify/commit/4b6e1ea24e5b0cac713b23dd619e4c6391d59d6b))
+
 ## [0.3.5](https://github.com/joesaby/astro-archify/compare/v0.3.4...v0.3.5) (2026-08-30)
 
 
