@@ -221,6 +221,8 @@ Static builds (`output: 'static'`, the default) are fully supported. Under SSR (
 
 Archify's own renderer and viewer are vendored into this package at [`vendor/archify/`](./vendor/archify) — copied from [tt-a1i/archify](https://github.com/tt-a1i/archify) (MIT licensed) at commit `39a2113`, and used unmodified. See [`vendor/archify/NOTICE.md`](./vendor/archify/NOTICE.md) for exactly what was copied, why, and how to update it.
 
+Archify's built-in brand-mark icons (Angular, Rust, Vue.js, Jenkins, Apache Kafka/Airflow, .NET, JavaScript, OpenAI, etc.) are third-party assets under their own licenses — not MIT, and in at least one case more restrictive than MIT. See [`vendor/archify/THIRD_PARTY_NOTICES.md`](./vendor/archify/THIRD_PARTY_NOTICES.md) before using or redistributing diagrams that include those marks.
+
 To be clear about the boundary: **everything under `vendor/archify/` is Archify's own code**, doing Archify's own layout, rendering, and the entire interactive viewer. Everything else in this repository — the remark/Sätteri plugin glue that finds `archify` code fences, spawning the renderer as a subprocess, content-addressed caching, serving artifacts from their own URLs, the iframe embedding and its auto-resize bridge, the Astro markdown-engine compatibility shim, the tests, and the demo — is original to `astro-archify` (the markdown-engine detection follows the same pattern used in [astro-mermaid](https://github.com/joesaby/astro-mermaid), also by this author).
 
 ## Styling

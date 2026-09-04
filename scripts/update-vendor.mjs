@@ -104,10 +104,13 @@ function main() {
     else if (isChanged) changed.push(rel);
   }
 
-  // LICENSE isn't part of the import graph but must stay in sync too.
-  const licenseSrc = path.join(packageRoot, '..', 'LICENSE');
-  if (fs.existsSync(licenseSrc)) {
-    fs.copyFileSync(licenseSrc, path.join(VENDOR_ROOT, 'LICENSE'));
+  // LICENSE and THIRD_PARTY_NOTICES.md aren't part of the import graph
+  // (nothing imports them) but must stay in sync too.
+  for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) {
+    const src = path.join(packageRoot, name);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(VENDOR_ROOT, name));
+    }
   }
 
   const version = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')).version;

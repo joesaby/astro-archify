@@ -1,11 +1,12 @@
 # Vendored from Archify
 
-This directory contains source code copied verbatim from [tt-a1i/archify](https://github.com/tt-a1i/archify), used under its MIT license (see `LICENSE` in this directory).
+This directory contains source code copied verbatim from [tt-a1i/archify](https://github.com/tt-a1i/archify), used under its MIT license (see `LICENSE` in this directory) — plus third-party brand-mark notices that license covers separately (see `THIRD_PARTY_NOTICES.md` below).
 
 - **Source**: https://github.com/tt-a1i/archify
 - **Pinned commit**: `39a21139a4661203888049d44e3b8c0da13fa576`
 - **Upstream version**: `2.16.0` (per `archify/package.json` at that commit)
 - **Vendored on**: 2026-08-30
+- **LICENSE / THIRD_PARTY_NOTICES.md refreshed from**: `06dd052602dd9a369e4d034e24faef0917b5a60c` (2026-09-02), to pick up two upstream license-disclosure fixes — [#265](https://github.com/tt-a1i/archify/pull/265) (corrected copyright provenance) and [#267](https://github.com/tt-a1i/archify/pull/267) (added `THIRD_PARTY_NOTICES.md`). No renderer or `assets/template.html` code changed upstream in that range (only a `generator` version-string bump, to an unreleased `2.17.0-dev.1`), so the code pin above was left as-is.
 
 ## What was copied, and why
 
@@ -24,6 +25,8 @@ renderers/shared/*.mjs        (16 files: layout, geometry, text-fit, legend,
                                 brand marks, i18n, diagnostics, validation, etc.)
 assets/template.html          (the viewer: CSS + interactive runtime JS)
 ```
+
+`LICENSE` and `THIRD_PARTY_NOTICES.md` are copied alongside these (not part of the import graph, but kept in sync — see `scripts/update-vendor.mjs`). `THIRD_PARTY_NOTICES.md` matters because the shared brand-marks files above (`renderers/shared/brand-marks.mjs`, `renderers/shared/generated-brand-marks.mjs`) embed third-party icon vector data — Simple Icons and OpenAI's own brand assets — under licenses that are **not** MIT and, in at least one case (Vue.js: `CC-BY-NC-SA-4.0`), more restrictive than MIT. Read that file before using or redistributing rendered diagrams that include those marks.
 
 These files are otherwise **unmodified** from upstream. `astro-archify`'s own code (in the repository root — `astro-archify-integration.js` and friends) invokes them exactly as Archify's own CLI does internally: as a Node subprocess, with the same `argv`/environment-variable contract (`node render-<type>.mjs <input.json> <output.html>`, `ARCHIFY_QUALITY_PROFILE`, `ARCHIFY_DIAGNOSTIC_FORMAT=json`). None of astro-archify's own rendering, embedding, resize, or Astro-integration logic is derived from Archify's code — see the root `README.md`'s "Attribution" section for that boundary.
 
