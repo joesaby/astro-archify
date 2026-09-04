@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/joesaby/astro-archify/compare/v0.4.0...v0.4.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* sync upstream Archify license-disclosure fixes into vendor/ ([cdfba70](https://github.com/joesaby/astro-archify/commit/cdfba707eafba887f727eed2348b563628155dfc))
+
 # [0.4.0](https://github.com/joesaby/astro-archify/compare/v0.3.6...v0.4.0) (2026-09-04)
 
 
