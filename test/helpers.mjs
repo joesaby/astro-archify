@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
+import { VFile } from 'vfile';
 
 import astroArchify from '../astro-archify-integration.js';
 
@@ -59,8 +60,9 @@ export async function setupIntegration(options, { base = '/' } = {}) {
 export async function process(markdown, options, setupOpts) {
   const harness = await setupIntegration(options, setupOpts);
   const processor = unified().use(remarkParse).use(harness.plugin, harness.pluginOptions);
-  const tree = processor.parse(markdown);
-  await processor.run(tree);
+  const file = new VFile({ value: markdown, path: setupOpts?.filePath });
+  const tree = processor.parse(file);
+  await processor.run(tree, file);
   return { tree, harness };
 }
 

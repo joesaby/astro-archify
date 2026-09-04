@@ -174,6 +174,63 @@ describe('astroArchify remark plugin', () => {
   });
 });
 
+describe('astroArchify loading diagrams from an external JSON file', () => {
+  const filePath = join(testDir, 'fixtures/pages/example.md');
+
+  it('renders a diagram whose JSON IR is loaded from a file="..." attribute', async () => {
+    const markdown = ['```archify file="../archify-examples/web-app.architecture.json"', '```'].join('\n');
+
+    const { tree, harness } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT }, { filePath });
+    const nodes = htmlNodes(tree);
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].value).not.toContain('archify-diagram-error');
+
+    const src = iframeSrc(nodes[0].value);
+    const { body } = await harness.requestFromDevServer(src);
+    expect(body).toContain('data-archify-type="architecture"');
+    expect(body).toContain('data-title="Sample Web App"');
+  });
+
+  it('resolves a relative file path against the markdown file\'s own directory, not the process cwd', async () => {
+    const markdown = ['```archify file="./web-app.architecture.json"', '```'].join('\n');
+    const pageInFixtureDir = join(testDir, 'fixtures/archify-examples/page.md');
+
+    const { tree, harness } = await process(
+      markdown,
+      { rendererRoot: FAKE_ARCHIFY_ROOT },
+      { filePath: pageInFixtureDir }
+    );
+    const src = iframeSrc(htmlNodes(tree)[0].value);
+    const { body } = await harness.requestFromDevServer(src);
+    expect(body).toContain('data-title="Sample Web App"');
+  });
+
+  it('honors an explicit type in the fence language alongside a file attribute', async () => {
+    const markdown = ['```archify:sequence file="../archify-examples/web-app.architecture.json"', '```'].join('\n');
+
+    const { tree, harness } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT }, { filePath });
+    const src = iframeSrc(htmlNodes(tree)[0].value);
+    const { body } = await harness.requestFromDevServer(src);
+    expect(body).toContain('data-archify-type="sequence"');
+  });
+
+  it('renders an inline error block when the referenced file does not exist', async () => {
+    const markdown = ['```archify file="./does-not-exist.json"', '```'].join('\n');
+
+    const { tree } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT }, { filePath });
+    const nodes = htmlNodes(tree);
+    expect(nodes[0].value).toContain('archify-diagram-error');
+    expect(nodes[0].value).toContain('could not read archify file');
+  });
+
+  it('throws instead of embedding an error block for a missing file when strict is enabled', async () => {
+    const markdown = ['```archify file="./does-not-exist.json"', '```'].join('\n');
+    await expect(
+      process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT, strict: true }, { filePath })
+    ).rejects.toThrow(/could not read archify file/);
+  });
+});
+
 describe('astroArchify with the bundled (default) Archify renderer', () => {
   it('renders a real diagram end-to-end with no options at all', async () => {
     const ir = {
