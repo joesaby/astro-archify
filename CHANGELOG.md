@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/joesaby/astro-archify/compare/v0.3.6...v0.4.0) (2026-09-04)
+
+
+### Features
+
+* support loading archify diagrams from an external JSON file ([45d86fc](https://github.com/joesaby/astro-archify/commit/45d86fc6ffea90a741208134c69be462e40367d6)), closes [#11](https://github.com/joesaby/astro-archify/issues/11)
+
 ## [0.3.6](https://github.com/joesaby/astro-archify/compare/v0.3.5...v0.3.6) (2026-08-31)
 
 
