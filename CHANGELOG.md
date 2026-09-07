@@ -1,3 +1,10 @@
+## [0.4.2](https://github.com/joesaby/astro-archify/compare/v0.4.1...v0.4.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* publish Archify 2.17.0-dev.1 vendor ([20b630b](https://github.com/joesaby/astro-archify/commit/20b630b22ba6e7efc1ddacc5b1eb5193d3c2536e)), closes [#14](https://github.com/joesaby/astro-archify/issues/14)
+
 ## [0.4.1](https://github.com/joesaby/astro-archify/compare/v0.4.0...v0.4.1) (2026-09-04)
 
 
