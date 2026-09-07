@@ -3,10 +3,9 @@
 This directory contains source code copied verbatim from [tt-a1i/archify](https://github.com/tt-a1i/archify), used under its MIT license (see `LICENSE` in this directory) — plus third-party brand-mark notices that license covers separately (see `THIRD_PARTY_NOTICES.md` below).
 
 - **Source**: https://github.com/tt-a1i/archify
-- **Pinned commit**: `39a21139a4661203888049d44e3b8c0da13fa576`
-- **Upstream version**: `2.16.0` (per `archify/package.json` at that commit)
-- **Vendored on**: 2026-08-30
-- **LICENSE / THIRD_PARTY_NOTICES.md refreshed from**: `06dd052602dd9a369e4d034e24faef0917b5a60c` (2026-09-02), to pick up two upstream license-disclosure fixes — [#265](https://github.com/tt-a1i/archify/pull/265) (corrected copyright provenance) and [#267](https://github.com/tt-a1i/archify/pull/267) (added `THIRD_PARTY_NOTICES.md`). No renderer or `assets/template.html` code changed upstream in that range (only a `generator` version-string bump, to an unreleased `2.17.0-dev.1`), so the code pin above was left as-is.
+- **Pinned commit**: `920543baa1c6137803c5b45a69d8977152773d35`
+- **Upstream version**: `2.17.0-dev.1` (per `archify/package.json` at that commit)
+- **Vendored on**: 2026-09-07
 
 ## What was copied, and why
 
