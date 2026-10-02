@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { visit } from 'unist-util-visit';
 
@@ -80,6 +80,69 @@ describe('astroArchify remark plugin', () => {
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
+  });
+
+  describe('warm builds', () => {
+    const markdown = [
+      '```archify',
+      JSON.stringify({ diagram_type: 'architecture', meta: { title: 'Warm build' } }),
+      '```'
+    ].join('\n');
+
+    async function withDirs(fn) {
+      const cacheDir = await mkdtemp(join(tmpdir(), 'astro-archify-cache-'));
+      const outputDir = await mkdtemp(join(tmpdir(), 'astro-archify-out-'));
+      try {
+        await fn({ cacheDir, outputDir });
+      } finally {
+        await rm(cacheDir, { recursive: true, force: true });
+        await rm(outputDir, { recursive: true, force: true });
+      }
+    }
+
+    // Simulates Astro serving a page from its content cache: the page HTML
+    // references the artifact, but the markdown plugin does not run.
+    async function writeCachedPage(outputDir, src) {
+      await writeFile(join(outputDir, 'index.html'), `<iframe src="${src}"></iframe>`, 'utf8');
+    }
+
+    it('re-emits artifacts referenced by cached pages that were not re-rendered', async () => {
+      await withDirs(async ({ cacheDir, outputDir }) => {
+        const { tree, harness } = await process(markdown, { rendererRoot: FAKE_ARCHIFY_ROOT }, { cacheDir });
+        const src = iframeSrc(htmlNodes(tree)[0].value);
+        await harness.buildDone(outputDir);
+
+        const warmOutput = await mkdtemp(join(tmpdir(), 'astro-archify-warm-'));
+        try {
+          await writeCachedPage(warmOutput, src);
+          const warm = await setupIntegration({ rendererRoot: FAKE_ARCHIFY_ROOT }, { cacheDir });
+          await warm.buildDone(warmOutput);
+          const written = await readFile(join(warmOutput, '_archify', src.split('/').pop()), 'utf8');
+          expect(written).toContain('data-title="Warm build"');
+        } finally {
+          await rm(warmOutput, { recursive: true, force: true });
+        }
+      });
+    });
+
+    it('fails the build when a referenced artifact cannot be recovered', async () => {
+      await withDirs(async ({ cacheDir, outputDir }) => {
+        await writeCachedPage(outputDir, '/_archify/0123456789abcdef.html');
+        const harness = await setupIntegration({ rendererRoot: FAKE_ARCHIFY_ROOT }, { cacheDir });
+        await expect(harness.buildDone(outputDir)).rejects.toThrow(/0123456789abcdef.*--force/);
+      });
+    });
+
+    it('does not write unreferenced artifacts from the persistent store', async () => {
+      await withDirs(async ({ cacheDir, outputDir }) => {
+        await mkdir(join(cacheDir, 'astro-archify'), { recursive: true });
+        await writeFile(join(cacheDir, 'astro-archify', '0123456789abcdef.html'), '<html></html>', 'utf8');
+        await writeFile(join(outputDir, 'index.html'), '<p>no diagrams</p>', 'utf8');
+        const harness = await setupIntegration({ rendererRoot: FAKE_ARCHIFY_ROOT }, { cacheDir });
+        await harness.buildDone(outputDir);
+        await expect(readFile(join(outputDir, '_archify', '0123456789abcdef.html'))).rejects.toThrow();
+      });
+    });
   });
 
   it('honors custom height bounds', async () => {

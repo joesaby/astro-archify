@@ -17,13 +17,13 @@ const noopLogger = { info() {}, warn() {}, error() {} };
  * through the captured middleware, and a way to trigger astro:build:done
  * against a real temp directory.
  */
-export async function setupIntegration(options, { base = '/' } = {}) {
+export async function setupIntegration(options, { base = '/', cacheDir } = {}) {
   const integration = astroArchify(options);
   let updatedMarkdown;
   let middlewareHandler;
 
   await integration.hooks['astro:config:setup']({
-    config: { markdown: {}, base },
+    config: { markdown: {}, base, ...(cacheDir && { cacheDir: pathToFileURL(`${cacheDir}/`) }) },
     updateConfig: patch => { updatedMarkdown = patch.markdown; },
     injectScript: () => {},
     logger: noopLogger
