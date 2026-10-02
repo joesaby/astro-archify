@@ -1,3 +1,10 @@
+## [0.4.3](https://github.com/joesaby/astro-archify/compare/v0.4.2...v0.4.3) (2026-10-02)
+
+
+### Bug Fixes
+
+* re-emit diagram artifacts on warm builds ([568695c](https://github.com/joesaby/astro-archify/commit/568695c1f2aaa07032743a5d47313adf875594e7)), closes [#17](https://github.com/joesaby/astro-archify/issues/17)
+
 ## [0.4.2](https://github.com/joesaby/astro-archify/compare/v0.4.1...v0.4.2) (2026-09-07)
 
 
